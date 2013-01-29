@@ -44,12 +44,14 @@ statement-part :         compound-statement
 compound-statement :     "begin" [statement (";"+ statement)*] [";"+] "end"
 statement :	             simple-statement | structured-statement
 simple-statement :       assignment-statement | procedure-statement | 
-                         application | read-statement | write-statement
+                         application | read-statement | 
+                         write-statement | writeln-statement
 assignment-statement :   variable ["[" expression "]"] ":=" expression
 procedure-statement :    procedure-identifier
 application :            IDENTIFIER "(" expression ("," expression)* ")"
 read-statement :         ("readln"|"read")    "(" IDENTIFIER ("," IDENTIFIER)* ")"
-write-statement :	     ("writeln"|"write") ["(" output-value ("," output-value)* ")"]
+write-statement :	     "write" "(" output-value ("," output-value)* ")"
+writeln-statement :	     "writeln" ["(" output-value ("," output-value)* ")"]
 
 procedure-identifier :   IDENTIFIER
 output-value :	     expression

@@ -557,6 +557,8 @@
      (compile-read-statement #'sub)]
     [(_ (~and sub ((~datum write-statement) . more)))
      (compile-write-statement #'sub)]
+    [(_ (~and sub ((~datum writeln-statement) . more)))
+     (compile-write-statement #'sub)]
     [(_ (~and sub ((~datum application) . more)))
      (def (s st) (compile-application #'sub))
      s]
