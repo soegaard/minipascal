@@ -547,7 +547,8 @@
 
 (define (compile-simple-statement stx)
   ;simple-statement : assignment-statement | procedure-statement 
-  ;             | read-statement | write-statement | application
+  ;       | read-statement | write-statement | writeln-statement
+  ;       | application
   (syntax-parse stx
     [(_ (~and sub ((~datum assignment-statement) . more)))
      (compile-assignment-statement #'sub)]
@@ -558,7 +559,7 @@
     [(_ (~and sub ((~datum write-statement) . more)))
      (compile-write-statement #'sub)]
     [(_ (~and sub ((~datum writeln-statement) . more)))
-     (compile-write-statement #'sub)]
+     (compile-writeln-statement #'sub)]
     [(_ (~and sub ((~datum application) . more)))
      (def (s st) (compile-application #'sub))
      s]
@@ -612,24 +613,33 @@
 (define (compile-write-statement stx)
   ; write-statement :
   ;   "write"    "(" output-value ("," output-value)* ")"
-  ; | "writeln" ["(" output-value ("," output-value)* ")"]
   (syntax-parse stx 
-    [(_ write-op "(" out0 (~seq "," out) ... ")")     
-     (def writer 
-       (match (syntax->datum #'write-op)
-         ["writeln" #'pascal:writeln]
-         ["write"   #'pascal:write]))
+    [(_ "write" "(" out0 (~seq "," out) ... ")")          
      (def outs (syntax->list #'(out0 out ...)))
      (def writes
        (for/list ([out (in-list outs)])
          (def (expr type) (compile-output-value out))
          (quasisyntax/loc stx
-           (#,writer #,expr))))
+           (pascal:write #,expr))))
      (quasisyntax/loc stx
-       (begin #,@writes))]
+       (begin #,@writes))]))
+
+(define (compile-writeln-statement stx)
+  ; writeln-statement :
+  ;   "writeln" ["(" output-value ("," output-value)* ")"]
+  (syntax-parse stx 
     [(_ "writeln")
      (syntax/loc stx
-       (newline))]))
+       (newline))]
+    [(_ "writeln" "(" out0 (~seq "," out) ... ")")     
+     (def outs (syntax->list #'(out0 out ...)))
+     (def writes
+       (for/list ([out (in-list outs)])
+         (def (expr type) (compile-output-value out))
+         (quasisyntax/loc stx
+           (pascal:writeln #,expr))))
+     (quasisyntax/loc stx
+       (begin #,@writes))]))
 
 (define (compile-output-value stx)
   ; output-value : expression

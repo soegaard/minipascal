@@ -259,8 +259,9 @@
     [_ (error)]))
 
 (define (compile-simple-statement stx)
-  ;simple-statement : assignment-statement | procedure-statement 
-  ;             | read-statement | write-statement | application
+  ;simple-statement :   assignment-statement | procedure-statement 
+  ;                   | read-statement | write-statement 
+  ;                   | writeln-statement | application
   (syntax-parse stx
     [(_ sub) #'sub]    
     [_ (error)]))
@@ -294,13 +295,17 @@
 (define (compile-write-statement stx)
   ; write-statement :
   ;  "write"    "(" output-value ("," output-value)* ")"
-  ;  "writeln" ["(" output-value ("," output-value)* ")"]
   (syntax-parse stx 
     [(_ "write" "(" out0 (~seq "," out) ... ")")
      (syntax/loc stx
        (begin
          (pascal:write out0)
-         (pascal:write out) ...))]
+         (pascal:write out) ...))]))
+
+(define (compile-writeln-statement stx)
+  ; writeln-statement :
+  ;  "writeln" ["(" output-value ("," output-value)* ")"]
+  (syntax-parse stx     
     [(_ "writeln")
      (syntax/loc stx
        (newline))]
@@ -309,8 +314,6 @@
        (begin
          (pascal:writeln out0)
          (pascal:writeln out) ...))]))
-
-(define compile-writeln-statement compile-write-statement)
 
 (define (compile-output-value stx)
   ; output-value : expression
