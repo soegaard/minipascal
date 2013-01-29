@@ -54,7 +54,7 @@
  procedure-declaration function-declaration
  block statement-part statement compound-statement
  simple-statement assignment-statement read-statement
- write-statement 
+ write-statement writeln-statement 
  procedure-statement structured-statement
  if-statement while-statement expression
  simple-expression term factor constant

@@ -310,6 +310,8 @@
          (pascal:writeln out0)
          (pascal:writeln out) ...))]))
 
+(define compile-writeln-statement compile-write-statement)
+
 (define (compile-output-value stx)
   ; output-value : expression
   (syntax-parse stx
