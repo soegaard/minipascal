@@ -72,14 +72,16 @@ Exercises
 Installation
 ------------
 
+Install this package with:
+
+    raco pkg install minipascal
+
+or, by evaluating:
+
+    #lang racket
+    (require planet2)
+    (install "minipascal")
+
 Use the Racket package manager to install:
 
  raco pkg install minipascal
-
-
-If you're not yet using Racket v5.3.1.5 ot later, you can also just
-link the 'minipascal' collection directly (with the following command
-in this directory of this README.md, not its parent):
-
- raco link minipascal
- 
