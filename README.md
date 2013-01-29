@@ -4,7 +4,7 @@ MiniPascal
 MiniPascal as a Racket language
 -------------------------------
 
-This is the `minipascal' package. It provides a MiniPacal
+This is the `minipascal' package. It provides MiniPascal
 as a new #lang language.
 
 After installation (see later) the following program will run
@@ -42,7 +42,7 @@ The following features are supported:
 Compilers
 ---------
   
-MiniPacal comes with two compilers. The simple one
+MiniPascal comes with two compilers. The simple one
 in "semantics-simple.rkt" translates directly from
 Pascal to Racket without any (compile time) type 
 checking. This compiler is written in the same
@@ -50,12 +50,12 @@ spirit as the example in the Ragg tutorial. In
 other words it "compiles by macro expansion".
 
 The other compiler in "semantics.rkt" demonstrates
-how scoping and type checking works. The compiler
-more traditional, it expands the whole Pascal 
-program in one go.
+how scoping and type checking can by implemented. 
+The compiler more traditional, it expands the whole 
+Pascal program in one go.
 
 To switch from the full compiler to the simple one,
-add simple to the #lang line. That is:
+add 'simple' to the #lang line. That is, the lines:
     #lang minipascal
     #lang minipascal simple
 use the full and simple compiler respectively.
