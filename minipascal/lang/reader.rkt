@@ -7,11 +7,14 @@
 (require "../mini-pascal-lexer.rkt"
          "../mini-pascal-grammar.rkt")
 
+(require "../compiler.rkt")
+
 ; In order to specify paths relative to the
-; path of "reader.rkt" we use runtime-paths.
+; path of "reader.rkt" (rather than the file 
+; containing the file to be read) we use 
+; runtime-paths.
 (require racket/runtime-path)
 (define-runtime-path sem-simple-path  "../semantics-simple.rkt")
-(define-runtime-path sem-path         "../semantics.rkt")
 (define-runtime-path color-lexer-path "../mini-pascal-lexer.rkt")
 
 ; read-syntax runs the lexer and parser on the 
@@ -24,18 +27,23 @@
 ; compiles (block ...) into the language
 ; specified in the "runtime.rkt".
 
+(define mode 'full)
+
 (define (my-read-syntax src ip)
   (define after-minipascal (read-line ip))
   ; determine which compiler to use
   ;   #lang minipascal simple  => semantics-simple.rkt
   ;   #lang minipascal         => semantics.rkt
-  (define semantics-path
-    (if (regexp-match "simple" after-minipascal)
-        sem-simple-path
-        sem-path))  
-  (quasisyntax/loc #'here
-    (module minipascal #,semantics-path
-      #,(parse src (lex ip)))))
+  (when (regexp-match "simple" after-minipascal)
+    (set! mode 'simple))
+  (define parse-tree (parse src (lex ip)))
+  (case mode
+    [(full)
+     (compile-program parse-tree)]
+    [(simple) 
+     (quasisyntax/loc #'here
+       (module minipascal #,sem-simple-path
+         #,parse-tree))]))
 
 ; read returns the same as read-syntax,
 ; except as a datum.

@@ -251,22 +251,40 @@
          result)]))
 
 ;;;
+;;; Provide
+;;; 
+
+(define current-provides (make-parameter '()))
+(define (add-provide! id)
+  (current-provides
+   (cons id (current-provides))))
+
+;;;
 ;;; Compilation
 ;;;
 
-(define (compile-program stx)  
+(define (compile-program stx)
   (syntax-parse stx
-    [({~datum program} "program" program-name ";" block ".")
+    [((~datum program) "program" program-name ";" block ".")
      (parameterize ([current-scope (make-empty-scope)])
-       ;add base types
+       ; Add base types
        (add-to-scope! 'integer (make-type-info 'integer))
        (add-to-scope! 'boolean (make-type-info 'boolean))
        (add-to-scope! 'char    (make-type-info 'char))
        (add-to-scope! 'true    (make-type-info 'boolean))
        (add-to-scope! 'false   (make-type-info 'boolean))
        ; Any library functions can be added here.
-       (push-empty-frame!)         
-       (compile-block #'block))]))
+       (push-empty-frame!)
+       (def compiled-block (compile-block #'block))
+       (def provides
+         (for/list ([id (in-list (current-provides))])
+           (quasisyntax/loc stx
+             (provide #,id))))
+       (quasisyntax/loc stx
+         (module minipascal racket/base
+           (require (lib "minipascal/runtime.rkt"))           
+           #,@provides
+           #,compiled-block)))]))
 
 (define (compile-block stx)
   (syntax-parse stx
@@ -288,7 +306,7 @@
                  #'procedure-and-function-declaration-part))
      (def stat-part (compile-statement-part #'statement-part))
      (quasisyntax/loc stx
-       (let () ; new scope
+       (begin
          #,@def-vars
          #,@decls
          #,stat-part))]
@@ -354,7 +372,7 @@
     [(_ (~seq decl ";") ...)
      (define (compile-decl d)
        (syntax-parse d 
-         [((~datum procedure-declaration) . more)            
+         [((~datum procedure-declaration) . more)
           (compile-procedure-declaration d)]
          [((~datum function-declaration) . more)
           (compile-function-declaration d)]))
@@ -394,6 +412,7 @@
      (def compiled-block (compile-block #'block))
      (with-syntax ([thunk (generate-temporary 
                            (~a (syntax->datum #'id) "-thunk"))])
+       (add-provide! #'id)
        (quasisyntax/loc stx 
          (begin  
            (define-syntax id
@@ -425,7 +444,8 @@
        (def compiled-block 
          (with-extended-scope (make-frame alist)
            (add-to-scope! sym info)
-           (compile-block #'block)))       
+           (compile-block #'block)))
+       (add-provide! #'id)
        (quasisyntax/loc stx
          (define (id formal0 ... formal ... ...)
            #,compiled-block)))]))
@@ -450,10 +470,11 @@
          (with-extended-scope (make-empty-frame)
            (add-to-scope! sym info)
            (compile-block #'block)))
+       (add-provide! #'id)
        (quasisyntax/loc stx
          (begin
            ; Pascal uses a variable to store the result value
-           (define result 'uninitialized)           
+           (define result 'uninitialized)
            (define-syntax id
              (make-set!-transformer
               (lambda (so)
@@ -496,6 +517,7 @@
          (with-extended-scope (make-frame alist)
            (add-to-scope! sym info)
            (compile-block #'block)))
+       (add-provide! #'id)
        (quasisyntax/loc stx
          (begin
            (define result 'uninitialized)
@@ -524,6 +546,8 @@
   ; compound-statement : 
   ;    "begin" [statement (";"+ statement)*] [";"+] "end"
   (syntax-parse stx
+    [(_ (~seq "begin" "end"))
+     (syntax/loc stx (begin))]
     [(_ (~seq "begin" 
               (~optional (~seq statement0 (~seq ";" statement) ...))
               (~optional ";")

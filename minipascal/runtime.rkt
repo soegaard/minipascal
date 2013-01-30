@@ -143,4 +143,3 @@
          "'compiler-simple.rkt' only supports char and integer.")
        (error 'makearray msg)]))     
   (construct-array from to ->index (λ() from)))
-  

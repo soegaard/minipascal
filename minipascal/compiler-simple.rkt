@@ -49,9 +49,7 @@
 (define (compile-program stx)  
   (syntax-parse stx
     [({~datum program} "program" program-name ";" block ".")
-     (compile-block #'block)
-     #;(parameterize ([current-scope (make-empty-scope)])
-         (compile-block #'block))]))
+     (compile-block #'block)]))
 
 (define (compile-block stx)
   (syntax-parse stx
@@ -244,6 +242,9 @@
   ; compound-statement : 
   ;    "begin" [statement (";"+ statement)*] [";"+] "end"
   (syntax-parse stx
+    [(_ "begin" "end")
+     (syntax/loc stx 
+       (begin))]
     [(_ (~seq "begin" 
               (~optional (~seq statement0 (~seq ";" statement) ...))
               (~optional ";")
