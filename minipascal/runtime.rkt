@@ -38,7 +38,9 @@
  (rename-out
   [array-ref       pascal:array-ref]
   [array-set!      pascal:array-set!]
-  [construct-array pascal:construct-array]))
+  [construct-array pascal:construct-array])
+ ;;; STANDARD LIBRARY
+ chr)
 
 (require racket/match)  
 (require (for-syntax syntax/parse
@@ -143,3 +145,18 @@
          "'compiler-simple.rkt' only supports char and integer.")
        (error 'makearray msg)]))     
   (construct-array from to ->index (λ() from)))
+
+;;;CHARACTERS 
+
+; chr : byte -> char
+;  convert byte to character
+(define (chr b)
+  (unless (<= 0 b 256)
+    (raise-argument-error 'chr "byte" b))
+  (integer->char b))
+
+  
+
+
+
+

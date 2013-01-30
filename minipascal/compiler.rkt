@@ -166,7 +166,6 @@
 
 ;;; END OF TYPES
 
-
 ;;;
 ;;; SCOPE
 ;;;
@@ -274,6 +273,8 @@
        (add-to-scope! 'true    (make-type-info 'boolean))
        (add-to-scope! 'false   (make-type-info 'boolean))
        ; Any library functions can be added here.
+       (add-to-scope! 
+        'chr (make-variable-info (type:function (list 'integer) 'char)))
        (push-empty-frame!)
        (def compiled-block (compile-block #'block))
        (def provides
@@ -281,8 +282,8 @@
            (quasisyntax/loc stx
              (provide #,id))))
        (quasisyntax/loc stx
-         (module minipascal racket/base
-           (require (lib "minipascal/runtime.rkt"))           
+         (module minipascal (lib "minipascal/runtime.rkt")
+           (require (lib "minipascal/runtime.rkt"))
            #,@provides
            #,compiled-block)))]))
 

@@ -39,7 +39,9 @@
   (define parse-tree (parse src (lex ip)))
   (case mode
     [(full)
-     (compile-program parse-tree)]
+     (define prg (compile-program parse-tree))
+     ; (displayln prg)
+     prg]
     [(simple) 
      (quasisyntax/loc #'here
        (module minipascal #,sem-simple-path
