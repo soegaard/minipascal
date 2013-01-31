@@ -274,7 +274,14 @@
        (add-to-scope! 'false   (make-type-info 'boolean))
        ; Any library functions can be added here.
        (add-to-scope! 
-        'chr (make-variable-info (type:function (list 'integer) 'char)))
+        'chr 
+        (make-variable-info (type:function (list 'integer) 'char)))
+       (add-to-scope! 
+        'succ (make-variable-info (type:function (list '*) '*)))
+       (add-to-scope! 
+        'prev (make-variable-info (type:function (list '*) '*)))
+       (add-to-scope! 
+        'ord (make-variable-info (type:function (list '*) 'integer)))
        (push-empty-frame!)
        (def compiled-block (compile-block #'block))
        (def provides
@@ -282,7 +289,7 @@
            (quasisyntax/loc stx
              (provide #,id))))
        (quasisyntax/loc stx
-         (module minipascal (lib "minipascal/runtime.rkt")
+         (module program-name (lib "minipascal/runtime.rkt")
            (require (lib "minipascal/runtime.rkt"))
            #,@provides
            #,compiled-block)))]))
@@ -934,6 +941,8 @@
         (compile-if-statement #'sub)]
        [(~and sub ((~datum while-statement) . more))
         (compile-while-statement #'sub)]
+       [(~and sub ((~datum for-statement) . more))
+        (compile-for-statement #'sub)]
        [_ (error)])]
     [_ (error)]))
 
@@ -969,3 +978,29 @@
      (quasisyntax/loc stx
        (let while ()
          (when #,e #,s (while))))]))
+
+(define (compile-for-statement stx)
+  ; for-statement : "for" IDENTIFIER ":=" expression 
+  ;                 ("to"|"downto") expression "do" statement
+  (syntax-parse stx
+    [(_ "for" id ":=" expr1 "to" expr2 "do" stat)
+     (def (e1 e1t) (compile-expression #'expr1))
+     (def (e2 e2t) (compile-expression #'expr2))
+     (def s (compile-statement #'stat))     
+     (quasisyntax/loc stx
+       (let ([initial #,e1] [final #,e2])
+         (let for ([id initial])
+           #,s
+           (unless (eqv? id final)
+             (for (succ id))))))]
+    [(_ "for" id ":=" expr1 "downto" expr2 "do" stat)
+     (def (e1 e1t) (compile-expression #'expr1))
+     (def (e2 e2t) (compile-expression #'expr2))
+     (def s (compile-statement #'stat))
+     (quasisyntax/loc stx
+       (let ([initial #,e1] [final #,e2])
+         (let for ([id initial])
+           #,s
+           (unless (eqv? id final)
+             (for (prev id))))))]))
+

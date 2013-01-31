@@ -62,7 +62,7 @@ use the full and simple compiler respectively.
 
 Exercises
 ---------
-  - Add for loops
+  - Add mod as an operator
   - Add enumerated types
   - Add real numbers
   - Add strings (really arrays of char)
