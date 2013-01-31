@@ -232,12 +232,15 @@
   (cond [(empty? scope) => (λ(_) (error 'internal-error))]
         [else (car scope)]))
 
-(define (add-to-scope! sym info)
-  ; sym can be either a symbol or an identifier
+(define (add-to-scope! id info)
+  ; id can be either a symbol or an identifier
   (def frame (top-frame))
   (def alist (frame-alist frame))
+  (def sym id)
   (when (identifier? sym)
     (set! sym (syntax->datum sym)))
+  (when (member sym (map car alist))
+    (raise-syntax-error 'duplicate-binding "duplicate binding" id))
   (set-frame-alist! frame (cons (cons sym info) alist)))
 
 (define-syntax (with-extended-scope stx)
@@ -282,7 +285,7 @@
         'prev (make-variable-info (type:function (list '*) '*)))
        (add-to-scope! 
         'ord (make-variable-info (type:function (list '*) 'integer)))
-       (push-empty-frame!)
+       (push-empty-frame!) ; new scope
        (def compiled-block (compile-block #'block))
        (def provides
          (for/list ([id (in-list (current-provides))])
@@ -302,8 +305,7 @@
         procedure-and-function-declaration-part
         statement-part)
      ; The compilation of the constant and type definitions 
-     ; adds the defined constants and types to the current
-     ; scope. 
+     ; adds the defined constants and types to the current scope. 
      (compile-constant-definition-part #'constant-definition-part)
      (compile-type-definition-part #'type-definition-part)
      ; The expansion of the variable declaration part
@@ -325,7 +327,7 @@
   (syntax-parse stx
     [(_) (void)]
     [(_ "const" (~seq const-def ";") ...)
-     (push-empty-frame!) ; new scope for constants
+     ; (push-empty-frame!) ; new scope for constants
      (for-each compile-constant-definition 
                (syntax->list #'(const-def ...)))]))
 
@@ -343,7 +345,7 @@
   (syntax-parse stx
     [(_) (void)]
     [(_ "type" (~seq type-def ";") ...)
-     (push-empty-frame!) ; new scope for type definitions 
+     ; (push-empty-frame!) ; new scope for type definitions 
      (for-each compile-type-definition
                (syntax->list #'(type-def ...)))]))
 
@@ -358,7 +360,7 @@
   (syntax-parse stx
     [(_) '()]
     [(_ "var" (~seq var-decl ";") ...+)
-     (push-empty-frame!) ; new scope
+     ; (push-empty-frame!) ; new scope
      (append-map compile-variable-declaration
                  (syntax->list #'(var-decl ...)))]))
 
