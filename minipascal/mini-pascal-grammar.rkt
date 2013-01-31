@@ -56,10 +56,11 @@ writeln-statement :	     "writeln" ["(" output-value ("," output-value)* ")"]
 procedure-identifier :   IDENTIFIER
 output-value :	     expression
 
-structured-statement :   compound-statement | if-statement |  while-statement
+structured-statement :   compound-statement | if-statement |  while-statement | for-statement
 if-statement :           "if" expression "then" statement | 
                          "if" expression "then" statement "else" statement
 while-statement :        "while" expression "do" statement
+for-statement :          "for" IDENTIFIER ":=" expression ("to"|"downto") expression "do" statement
 
 expression :             simple-expression | 
                          simple-expression relational-operator simple-expression

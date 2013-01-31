@@ -33,7 +33,7 @@
   [char-constant 
    (union (concatenation #\' (char-complement #\') #\') "''''")]
   [reserved
-   (union "div" "or" "and" "not" "if"
+   (union "div" "or" "and" "not" "if" "for" "to" "downto"
           "then" "else" "of" "while" "do" "begin" "end" 
           "read" "readln" "write" "writeln"
           "var" "const" "array" "type" "bindable"

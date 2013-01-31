@@ -85,3 +85,10 @@ or, by evaluating:
 Use the Racket package manager to install:
 
  raco pkg install minipascal
+
+ References
+ ----------
+ Pascal ISO 7185 from 1990:
+ http://pascal-central.com/docs/iso7185.pdf
+ 
+ 

@@ -40,7 +40,8 @@
   [array-set!      pascal:array-set!]
   [construct-array pascal:construct-array])
  ;;; STANDARD LIBRARY
- chr)
+ chr
+ succ prev ord)
 
 (require racket/match)  
 (require (for-syntax syntax/parse
@@ -145,6 +146,31 @@
          "'compiler-simple.rkt' only supports char and integer.")
        (error 'makearray msg)]))     
   (construct-array from to ->index (λ() from)))
+
+
+;;; ORDINAL VALUES
+
+(define (succ v)
+  (cond
+    [(integer? v) (+ v 1)]
+    [(char? v)    (integer->char (+ 1 (char->integer v)))]
+    [else (raise-argument-error 'succ "ordinal value" v)]))
+
+(define (prev v)
+  (cond
+    [(integer? v) (- v 1)]
+    [(char? v)    (integer->char (+ -1 (char->integer v)))]
+    [else (raise-argument-error 'succ "ordinal value" v)]))
+
+(define (ord v)
+  (cond
+    [(integer? v) v]
+    [(char? v)    (char->integer v)]
+    [else (raise-argument-error 'succ "ordinal value" v)]))
+
+
+
+
 
 ;;;CHARACTERS 
 

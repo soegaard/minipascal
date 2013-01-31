@@ -506,3 +506,22 @@
      (syntax/loc stx
        (let while ()
          (when expr stat (while))))]))
+
+(define (compile-for-statement stx)
+  ; for-statement : "for" IDENTIFIER ":=" expression 
+  ;                 ("to"|"downto") expression "do" statement
+  (syntax-parse stx
+    [(_ "for" id ":=" expr1 "to" expr2 "do" stat)
+     (syntax/loc stx
+       (let ([initial expr1] [final expr2])
+         (let for ([id initial])
+           stat
+           (unless (eqv? id final)
+             (for (succ id))))))]
+    [(_ "for" id ":=" expr1 "downto" expr2 "do" stat)
+     (syntax/loc stx
+       (let ([initial expr1] [final expr2])
+         (let for ([id initial])
+           stat
+           (unless (eqv? id final)
+             (for (prev id))))))]))

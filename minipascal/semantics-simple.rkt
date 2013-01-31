@@ -56,8 +56,8 @@
  simple-statement assignment-statement read-statement
  write-statement writeln-statement 
  procedure-statement structured-statement
- if-statement while-statement expression
- simple-expression term factor constant
+ if-statement while-statement for-statement
+ expression simple-expression term factor constant
  constant-identifier output-value application
  relational-operator multiplying-operator
  variable procedure-identifier)
