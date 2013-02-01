@@ -176,6 +176,11 @@
 ; symbols to info structures.
 (define-struct frame (alist) #:mutable #:transparent)
 
+(define (display-scope)
+  (displayln
+   (map (λ (al) (map car al))
+        (map frame-alist (current-scope)))))
+
 ; There are 3 different info structures,
 ; name for constants, types and variables.
 (define-struct info ())
@@ -386,7 +391,6 @@
           (compile-procedure-declaration d)]
          [((~datum function-declaration) . more)
           (compile-function-declaration d)]))
-     (push-empty-frame!) ; new scope ? (TODO)
      (map compile-decl
           (syntax->list #'(decl ...)))]
     [_ (error)]))
@@ -417,8 +421,9 @@
   ;     block  
   (syntax-parse stx
     [(_ "procedure" id ";" block)
-     (add-to-scope! (syntax->datum #'id)
-                    (make-variable-info (type:procedure '())))
+     (def sym (syntax->datum #'id))
+     (def info (make-variable-info (type:procedure '())))
+     (add-to-scope! sym info)
      (def compiled-block (compile-block #'block))
      (with-syntax ([thunk (generate-temporary 
                            (~a (syntax->datum #'id) "-thunk"))])
@@ -449,11 +454,10 @@
               (syntax->datum #'(formal0 ... formal ... ...))
               (map make-variable-info formals-desc)))  
        (def sym (syntax->datum #'id))                      
-       (add-to-scope! sym info)
        (def info (make-variable-info proc-desc))
+       (add-to-scope! sym info)
        (def compiled-block 
          (with-extended-scope (make-frame alist)
-           (add-to-scope! sym info)
            (compile-block #'block)))
        (add-provide! #'id)
        (quasisyntax/loc stx
@@ -476,9 +480,9 @@
        (def desc 
          (type:function '() (compile-type-identifier #'type-id)))
        (def info (make-variable-info desc))
+       (add-to-scope! sym info)
        (def compiled-block 
          (with-extended-scope (make-empty-frame)
-           (add-to-scope! sym info)
            (compile-block #'block)))
        (add-provide! #'id)
        (quasisyntax/loc stx
@@ -500,14 +504,13 @@
         (~seq "(" formals0 (~seq ";" formals) ... ")")
         ":" type-id ";" block)
      ;;; TODO XXX check lookup succeeds.
-     (with-syntax ([(formal0 ...) 
-                    (formals->ids #'formals0)]
-                   [((formal ...) ...)  
-                    (map formals->ids
-                         (syntax->list #'(formals ...)))]
-                   [result (generate-temporary 
-                            (~a (syntax->datum #'id) "-result"))])
-       (define input-types
+     (with-syntax 
+         ([(formal0 ...)      (formals->ids #'formals0)]
+          [((formal ...) ...) (map formals->ids
+                                   (syntax->list #'(formals ...)))]
+          [result           (generate-temporary 
+                             (~a (syntax->datum #'id) "-result"))])
+       (def input-types
          (map formals->descriptions
               (syntax->list #'(formals0 formals ...))))
        (def sym (syntax->datum #'id))
@@ -523,11 +526,11 @@
          (map cons 
               (syntax->datum #'(formal0 ... formal ... ...))
               (map make-variable-info formals-desc)))
+       (add-to-scope! sym info)
        (def compiled-block 
-         (with-extended-scope (make-frame alist)
-           (add-to-scope! sym info)
+         (with-extended-scope (make-frame alist)           
            (compile-block #'block)))
-       (add-provide! #'id)
+       (add-provide! #'id)       
        (quasisyntax/loc stx
          (begin
            (define result 'uninitialized)
