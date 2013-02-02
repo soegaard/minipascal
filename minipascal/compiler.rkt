@@ -62,7 +62,7 @@
 (define type:boolean 'boolean)
 (define type:char    'char)
 (define type:integer 'integer)
-(define (type:index-range from to) 
+(define (type:index-range from to)
   (list from to))
 (define (type:array idx-type elm-type) 
   (list 'array idx-type elm-type))
@@ -71,13 +71,18 @@
 (define (type:function input-types return-type) 
   (list 'function input-types return-type))
 
+(define (type:index-range? v)
+  (match v
+    [(list f t) #t]
+    [_          #f]))
+
 (define (compile-type stx)
   ; type : simple-type | array-type
   (syntax-parse stx 
     [(_ sub)
      (syntax-parse #'sub
-       [((~datum simple-type) . more) (compile-simple-type #'sub)]
-       [((~datum array-type) . more)  (compile-array-type #'sub)]
+       [((~datum simple-type) . _) (compile-simple-type #'sub)]
+       [((~datum array-type)  . _) (compile-array-type  #'sub)]
        [_ (displayln stx) (error 'ct:internal-error)])]))
 
 (define (compile-array-type stx)
@@ -87,28 +92,41 @@
      (type:array (compile-index-type #'index)
                  (compile-simple-type #'simple))]))
 
-(define (compile-index-range stx)
-  ;index-range :      
-  ; ([sign] (constant-name | CHARACTER-CONSTANT | INTEGER-CONSTANT))
-  ; ".." 
-  ; ([sign] (constant-name | CHARACTER-CONSTANT | INTEGER-CONSTANT))
+(define (compile-index-constant stx)
+  ; index-const : [sign] INTEGER-CONSTANT | CHARACTER-CONSTANT 
+  ;             | [sign] constant-name 
   (syntax-parse stx
-    ; TODO: Handle signs
-    [(_ ((~datum constant-name) from-const) ".." to)
-     (unless (bound-to-constant? #'from-const) 
-       (error 'index-range "unknown constant" from stx))
-     (def from (lookup #'from-const))
-     (with-syntax ([val (constant-info-value from)])
-       (compile-index-range #'(_ val ".." to)))]
-    [(_ from ".." ((~datum constant-name) to-const))
-     (unless (bound-to-constant? #'to-const) 
-       (error 'index-range "unknown constant" #'to-const stx))
-     (def to (lookup #'to-const))
-     (with-syntax ([val (constant-info-value to)])         
-       (compile-index-range #'(_ from ".." val)))]
+    [(_ (~optional sign) const:integer)
+     (define s (compile-optional-sign #'sign))
+     (define val (syntax->datum #'const))
+     (if (= s 1) val (- val))]
+    [(_ (~optional sign) (~and sub ((~datum constant-name) . more)))
+     (define s (compile-optional-sign #'sign))
+     (define val (compile-constant-name #'sub))
+     (if (= s 1) val (- val))]
+    [c:char
+     (syntax->datum #'c)]
+    [_ (error)]))
+
+(define (compile-constant-name stx)
+  (syntax-parse stx
+    [(_ id)
+     (def sym (syntax->datum #'id))
+     (unless (bound-to-constant? sym)
+       (raise-syntax-error 'compile-constant-name
+                           "unbound variable" stx #'id))
+     (match (lookup #'id)
+       [(constant-info val) val]
+       [_ (error)])]
+    [_ (error)]))
+
+(define (compile-index-range stx)
+  ; index-range : index-constant ".." index-constant
+  (syntax-parse stx
     [(_ from ".." to)
-     (type:index-range (syntax->datum #'from)
-                       (syntax->datum #'to))]))
+     (type:index-range 
+      (compile-index-constant #'from)
+      (compile-index-constant #'to))]))
 
 (define (compile-index-type stx)
   ;index-type : type-identifier | index-range
@@ -123,11 +141,12 @@
 (define (compile-simple-type stx)
   ; simple-type : type-identifier | index-range
   (syntax-parse stx
-    [(_ (~and sub ((~datum type-identifier) . more)))
+    [(_ (~and sub ((~datum type-identifier) . _)))
      (compile-type-identifier #'sub)]
-    [(_ (~and sub ((~datum index-type) . more)))
-     (compile-index-type #'sub)]
-    [_ (error 'internal-error)]))
+    [(_ (~and sub ((~datum index-range) . _)))
+     (compile-index-range #'sub)]
+    [_ (displayln (list 'cst: stx))
+       (error 'internal-error)]))
 
 (define (compile-type-identifier stx)
   (syntax-parse stx
@@ -161,8 +180,13 @@
            (type:initial-value-constructor of-desc)]
           [->index ->index-stx])         
        #`(pascal:construct-array 
-          #,from #,to ->index (λ () of-construction-stx)))]
+          #,from #,to ->index (λ () of-construction-stx) '#,of-desc))]
     [#f (error "type not defined" type)]))
+
+(define (string->type str)
+  (def len (string-length str))
+  (type:array (type:index-range 0 (+ len 1))
+              type:char))
 
 ;;; END OF TYPES
 
@@ -290,6 +314,12 @@
         'prev (make-variable-info (type:function (list '*) '*)))
        (add-to-scope! 
         'ord (make-variable-info (type:function (list '*) 'integer)))
+       (add-to-scope! 'low 
+                      (make-variable-info 
+                       (type:function (list '*array*) 'integer)))
+       (add-to-scope! 'high 
+                      (make-variable-info
+                       (type:function (list '*array*) 'integer)))
        (push-empty-frame!) ; new scope
        (def compiled-block (compile-block #'block))
        (def provides
@@ -374,11 +404,16 @@
   (syntax-parse stx
     [(_ id0 (~seq "," id) ... ":" type)
      (def desc (compile-type #'type))
-     (def c (type:initial-value-constructor desc))
      (for/list ([id (in-list (syntax->list #'(id0 id ...)))])
-       (add-to-scope! id (make-variable-info desc))
-       (quasisyntax/loc stx 
-         (define #,id #,c)))]))
+       (cond
+         [(type:index-range? desc)
+          (quasisyntax/loc stx 
+            (define #,id '#,desc))]
+         [else
+          (def c (type:initial-value-constructor desc))
+          (add-to-scope! id (make-variable-info desc))
+          (quasisyntax/loc stx 
+            (define #,id #,c))]))]))
 
 (define (compile-procedure-and-function-declaration-part stx)
   ; procedure-and-function-declaration-part : 
@@ -722,7 +757,7 @@
   (syntax-parse stx
     [(_ id "(" expr0 (~seq "," expr) ... ")")
      (def exprs (syntax->list #'(expr0 expr ...)))
-     (def (es types) (map2 compile-expression exprs))
+     (def (es types) (map2 compile-expression exprs))     
      (def desc 
        (match (lookup #'id)
          [(variable-info (list 'function inputs return-desc))
@@ -787,14 +822,15 @@
      (raise-syntax-error 'rel-op msg stx)]))
 
 (define (compile-simple-expression stx)
-  ; simple-expression : sign term (adding-operator term)*
+  ; simple-expression : [sign] term (adding-operator term)*
   ; sign : ["+" | "-"]
   (syntax-parse stx 
     [(_ term)
      (compile-term #'term)]
-    [(_ ((~datum sign) s) term)
+    [(_ (~and sub ((~datum sign) _)) term)
+     (define s (compile-sign #'sub))
      (def (t type) (compile-term #'term))       
-     (values (quasisyntax/loc stx (* (sign s) #,t)) type)]
+     (values (quasisyntax/loc stx (* #,s #,t)) type)]
     [(_ term0 add-op term1)
      ; The adding operators + and - must expand to applications,
      ; and or must expand to a macro application. Therefore
@@ -843,6 +879,16 @@
     [(_ "-") #'-1]
     [_       #'1]))
 
+(define (compile-optional-sign stx)
+  ; sign : ["+" | "-"]
+  (syntax-parse stx
+    [(_ (~optional (~and s (~or "+" "-"))))
+     (if (attribute s)
+         (syntax-parse #'s
+           ["-" -1]
+           [_   +1])
+         1)]))
+
 (define (compile-term stx)
   ; term : factor (multiplying-operator factor)*; 
   (syntax-parse stx
@@ -890,17 +936,40 @@
              'boolean)]))
 
 (define (compile-constant stx)
-  ; constant : 
-  ;   INTEGER-CONSTANT | CHARACTER-CONSTANT | constant-identifier
+  ; constant : [sign] (INTEGER-CONSTANT | constant-identifier) 
+  ;          | CHARACTER-CONSTANT | STRING-CONSTANT 
   (define (type-of val)
     (cond [(integer? val) 'integer]
-          [(char? val) 'char]
+          [(char? val)    'char]
           [(boolean? val) 'boolean]))
   (syntax-parse stx
-    [(_ (~and sub ((~datum constant-identifier) . more)))
-     (compile-constant-identifier #'sub)]
-    [(_ val) 
-     (values #'val (type-of (syntax->datum #'val)))]
+    [(_  (~optional sign) 
+         (~and sub ((~datum constant-identifier) . more)))
+     (def (id idt) (compile-constant-identifier #'sub))
+     (cond
+       [(attribute sign)
+        (def s (compile-sign #'sign))
+        (values (quasisyntax/loc stx
+                  (* #,s #,id))
+                idt)]       
+       [else (values id idt)])]
+    [(_  [sign] int-const)
+     (def c (syntax->datum #'int-const))
+     (cond
+       [(attribute sign)
+        (def s (compile-sign #'sign))
+        (values (quasisyntax/loc stx
+                  (* #,s #,c))
+                (type-of c))]
+       [else   (values #'int-const 'integer)])]
+    [(_ val)     
+     (def datum (syntax->datum #'val))
+     (cond
+       [(string? datum) 
+        (values (syntax/loc stx (string->array val))
+                (string->type datum))]
+       [else
+        (values #'val (type-of (syntax->datum #'val)))])]
     [_ (error 'compile-constant "internal error")]))
 
 (define (compile-constant-identifier stx)
@@ -930,7 +999,7 @@
            (values #'id output)]
           [else (values #'id desc)])] ; error?
        [else
-        (def msg (~a "unbound identifier"))
+        (def msg (~a "unbound identifierXXX" (syntax->datum #'id)))
         (raise-syntax-error 'identifier msg #'id)])]
     [_ (error)]))
 
@@ -987,25 +1056,18 @@
 (define (compile-for-statement stx)
   ; for-statement : "for" IDENTIFIER ":=" expression 
   ;                 ("to"|"downto") expression "do" statement
+  (define (compile-for id expr1 expr2 stat next)
+    (def (e1 e1t) (compile-expression expr1))
+    (def (e2 e2t) (compile-expression expr2))
+    (def s (compile-statement stat))     
+    (quasisyntax/loc stx
+      (let ([initial #,e1] [final #,e2])
+        (let for ([#,id initial])
+          #,s
+          (unless (eqv? #,id final)
+            (for (#,next #,id)))))))
   (syntax-parse stx
     [(_ "for" id ":=" expr1 "to" expr2 "do" stat)
-     (def (e1 e1t) (compile-expression #'expr1))
-     (def (e2 e2t) (compile-expression #'expr2))
-     (def s (compile-statement #'stat))     
-     (quasisyntax/loc stx
-       (let ([initial #,e1] [final #,e2])
-         (let for ([id initial])
-           #,s
-           (unless (eqv? id final)
-             (for (succ id))))))]
+     (compile-for #'id #'expr1 #'expr2 #'stat #'succ)]
     [(_ "for" id ":=" expr1 "downto" expr2 "do" stat)
-     (def (e1 e1t) (compile-expression #'expr1))
-     (def (e2 e2t) (compile-expression #'expr2))
-     (def s (compile-statement #'stat))
-     (quasisyntax/loc stx
-       (let ([initial #,e1] [final #,e2])
-         (let for ([id initial])
-           #,s
-           (unless (eqv? id final)
-             (for (prev id))))))]))
-
+     (compile-for #'id #'expr1 #'expr2 #'stat #'prev)]))

@@ -1,12 +1,12 @@
 #lang ragg
 ;;; MiniPascal
 
-program :                "program" IDENTIFIER ";" block "."
-block :                  constant-definition-part
-                         type-definition-part 
-                         variable-declaration-part 
-                         procedure-and-function-declaration-part
-                         statement-part
+program :  "program" IDENTIFIER ";" block "."
+block :    constant-definition-part
+           type-definition-part 
+           variable-declaration-part 
+           procedure-and-function-declaration-part
+           statement-part
 
 constant-definition-part :  ["const" (constant-definition ";")+]
 constant-definition :       IDENTIFIER ("," IDENTIFIER)* "=" INTEGER-CONSTANT
@@ -20,8 +20,8 @@ variable-declaration :      IDENTIFIER ("," IDENTIFIER)* ":" type
 type :                   simple-type | array-type
 array-type :             "array" "[" index-type "]" "of" simple-type
 index-type :             type-identifier | index-range
-index-range :                 ([sign] (constant-name | CHARACTER-CONSTANT | INTEGER-CONSTANT))
-                         ".." ([sign] (constant-name | CHARACTER-CONSTANT | INTEGER-CONSTANT))
+index-constant :         [sign] INTEGER-CONSTANT | CHARACTER-CONSTANT | [sign] constant-name 
+index-range :            index-constant ".." index-constant
 simple-type :            type-identifier | index-range
 constant-name :          IDENTIFIER
 type-identifier :        IDENTIFIER
@@ -76,5 +76,6 @@ variable :               IDENTIFIER | IDENTIFIER  "[" expression "]"
 parameter-identifier :   IDENTIFIER
 
 ;; Lexical grammar
-constant :	             INTEGER-CONSTANT | CHARACTER-CONSTANT | constant-identifier
-constant-identifier :    IDENTIFIER
+constant :	             [sign] (INTEGER-CONSTANT | constant-identifier) 
+                       | CHARACTER-CONSTANT | STRING-CONSTANT 
+constant-identifier :  IDENTIFIER

@@ -35,10 +35,13 @@
  pascal:writeln
  ; Arrays
  makearray ; only for "compiler-simple.rkt"
+ low high
  (rename-out
   [array-ref       pascal:array-ref]
   [array-set!      pascal:array-set!]
   [construct-array pascal:construct-array])
+ ; Strings
+ string->array
  ;;; STANDARD LIBRARY
  chr
  succ prev ord)
@@ -71,6 +74,11 @@
    (match v
      [#t "true"]
      [#f "false"]
+     [(array 0 to vec ->index 'char)
+      (define len (char->integer (vector-ref vec 0)))
+      (list->string
+       (for/list ([i (in-range 1 (+ len 1))])
+         (vector-ref vec i)))]
      [else v])))
 (define (pascal:writeln val)
   (pascal:write val)
@@ -89,13 +97,13 @@
 ;    ->index is (λ(c) (- (ord c) 
 ;                        (ord #\a))
              
-(struct array (from to vec ->index) #:transparent)
+(struct array (from to vec ->index of-desc) #:transparent)
 
 ; array-ref : array index -> value
 ;   return the value whose index is idx
 (define (array-ref arr idx)
   (match arr
-    [(struct array (from to vec ->index))
+    [(struct array (from to vec ->index of-desc))
      (let ([i (->index idx)])
        (unless (<= (->index from) i (->index to))
          (raise-range-error 'array-ref "array" "" idx vec from to))
@@ -105,7 +113,7 @@
 ;   set the value whose index is idx to v
 (define (array-set! arr idx v)
   (match arr
-    [(struct array (from to vec ->index))
+    [(struct array (from to vec ->index of-desc))
      (let ([i (->index idx)])
        (unless (<= (->index from) i (->index to))
          (raise-range-error 'array-ref "array" "" idx vec from to))
@@ -116,13 +124,13 @@
 ;   (where ord returns the ordinal of a value)
 ;   whose initial values are filled be calling the thunk 
 ;   init-elm repeatedly
-(define (construct-array from to ->index init-elm)
+(define (construct-array from to ->index init-elm of-desc)
   (let ([from-i (->index from)]
         [to-i   (->index to)])
     (array from to 
-           (build-vector (+ (- (->index to) (->index from)) 1)
+           (build-vector (+ (- to-i from-i) 1)
                          (λ (_) (init-elm)))
-           ->index)))
+           ->index of-desc)))
 
 ; NOTE:
 ;   make-array is only used by "compiler-simple.rkt".
@@ -133,6 +141,11 @@
 ;   create an array with index-range from..to,
 ;   filled with the initial value expr.
 (define (makearray from to val)
+  (define of-type 
+    (cond [(integer? val) 'integer]
+          [(char? val)    'char]
+          [(boolean? val) 'boolean]
+          [else           #f]))          
   (define ->index
     (cond
       [(and (char? from) (char? to))
@@ -145,8 +158,23 @@
        (define msg 
          "'compiler-simple.rkt' only supports char and integer.")
        (error 'makearray msg)]))     
-  (construct-array from to ->index (λ() from)))
+  (construct-array from to ->index (λ() val) of-type))
 
+(define (string->array str)
+  (define len (string-length str))
+  (define vec (make-vector (+ len 1) (integer->char len)))
+  (for ([c (in-string str)]
+        [i (in-naturals)])
+    (vector-set! vec (+ i 1) c))
+  (array 0 len vec values 'char))
+
+;;; Array Functions in std lib
+
+(define (low a)
+  (array-from a))
+
+(define (high a)
+  (array-to a))
 
 ;;; ORDINAL VALUES
 

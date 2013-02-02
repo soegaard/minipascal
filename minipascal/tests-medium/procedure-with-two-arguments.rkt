@@ -4,6 +4,7 @@
 program bar;
 var
   result:integer;
+
 procedure f(sum,x:integer);
   begin
     if x<>0 then
@@ -13,6 +14,7 @@ procedure f(sum,x:integer);
     else
       result:=sum;
   end;
+  
 begin
   result:=0;
   f(0,10);

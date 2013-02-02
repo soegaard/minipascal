@@ -32,6 +32,10 @@
    (repetition 1 +inf.0 digit)]
   [char-constant 
    (union (concatenation #\' (char-complement #\') #\') "''''")]
+  [string-content 
+   (union (char-complement #\') "''")]
+  [string-constant 
+   (union (concatenation #\' (repetition 0 +inf.0 string-content) #\'))]
   [reserved
    (union "div" "or" "and" "not" "if" "for" "to" "downto"
           "then" "else" "of" "while" "do" "begin" "end" 
@@ -53,6 +57,9 @@
   [delimiters
    (union operators brackets other-delimiters)])
 
+(define (string-remove-ends str)
+  (substring str 1 (sub1 (string-length str))))
+
 ;; Lexer for MiniPascal
 (define (lex ip)
   (port-count-lines! ip)
@@ -70,6 +77,9 @@
       (if (equal? lexeme "''''")
           (token 'CHARACTER-CONSTANT #\')
           (token 'CHARACTER-CONSTANT (string-ref lexeme 1)))]
+     [string-constant
+      (token 'STRING-CONSTANT
+             (regexp-replace* "''" (string-remove-ends lexeme) "'"))]
      [whitespace
       (token 'WHITESPACE lexeme #:skip? #t)]
      [comment
@@ -125,11 +135,11 @@
    [(union "{" "}")
     (syn-val lexeme 'sexp-comment (string->symbol lexeme) start-pos end-pos)]
    #;[operators 
-      (syn-val lexeme 'symbol       #f start-pos end-pos)]
-   #;[string 
-      (syn-val lexeme 'string     #f start-pos end-pos)]   
+      (syn-val lexeme 'symbol     #f start-pos end-pos)]
+   [string-constant
+    (syn-val lexeme 'string       #f start-pos end-pos)]   
    [identifier
-    (syn-val lexeme 'identifier       #f start-pos end-pos)]      
+    (syn-val lexeme 'identifier   #f start-pos end-pos)]      
    [(union integer char-constant) 
     (syn-val lexeme 'constant     #f start-pos end-pos)]
    [delimiters

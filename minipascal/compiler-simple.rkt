@@ -395,8 +395,8 @@
   (syntax-parse stx 
     [(_ term)
      #'term]
-    [(_ ((~datum sign) s) term)
-     (syntax/loc stx (* (sign s) term))]
+    [(_ (~and sub ((~datum sign) s)) term)
+     (syntax/loc stx (* sub term))]
     [(_ term0 add-op term1)
      ; The adding operators + and - must expand to applications,
      ; and or must expand to a macro application. Therefore
@@ -465,13 +465,13 @@
 
 (define (compile-constant stx)
   ; constant : 
-  ;   INTEGER-CONSTANT | CHARACTER-CONSTANT | constant-identifier
-  (define (type-of val)
-    (cond [(integer? val) 'integer]
-          [(char? val) 'char]
-          [(boolean? val) 'boolean]))
+  ;   INTEGER-CONSTANT | CHARACTER-CONSTANT | STRING-CONSTANT | constant-identifier
   (syntax-parse stx
-    [(_ sub) #'sub]    
+    [(_ sub)
+     (define datum (syntax->datum #'sub))
+     (cond
+       [(string? datum) (syntax/loc stx (string->array sub))]
+       [else            #'sub])]
     [_ (error)]))
 
 (define (compile-constant-identifier stx)

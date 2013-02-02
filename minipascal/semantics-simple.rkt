@@ -2,7 +2,6 @@
 (provide (all-from-out "runtime.rkt"))
 
 (require "runtime.rkt")
-
 (require (for-syntax "compiler-simple.rkt"))
 
 ; The macro, program, compiles the syntax-object 
@@ -60,5 +59,4 @@
  expression simple-expression term factor constant
  constant-identifier output-value application
  relational-operator multiplying-operator
- variable procedure-identifier)
-
+ variable procedure-identifier sign)
