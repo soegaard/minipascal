@@ -13,7 +13,7 @@ as is in DrRacket.
     #lang minipascal
     program fib;
     type 
-     int=integer;
+      int=integer;
     function fib(n:int):int;
       begin
         if n=0 then
@@ -35,8 +35,9 @@ The following features are supported:
   - type definitions
   - function and procedure declarations
   - nested functions and procedures
-  - base types: integer, boolean, char
+  - base types: integer, boolean, char,
   - arrays 
+  - strings (in the for of arrays of char)
   - integer and char can be used as index ranges
 
 Compilers
@@ -63,9 +64,10 @@ use the full and simple compiler respectively.
 Exercises
 ---------
   - Add mod as an operator
-  - Add enumerated types
+  - Add repeat
+  - Add case
+  - Add enumerated types  
   - Add real numbers
-  - Add strings (really arrays of char)
   - Add records
   - Add files
   
@@ -86,9 +88,7 @@ Use the Racket package manager to install:
 
  raco pkg install minipascal
 
- References
- ----------
- Pascal ISO 7185 from 1990:
- http://pascal-central.com/docs/iso7185.pdf
- 
- 
+References
+----------
+Pascal ISO 7185 from 1990:
+http://pascal-central.com/docs/iso7185.pdf
