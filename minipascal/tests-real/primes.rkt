@@ -40,32 +40,50 @@ H-89            II.0            455    (2 MHz Z-80)
 
 }
 
+{Feb. 2013 
+  Minimal changes to run in MiniPacal:
+    - added fillchar routine
+    - lowercased
+ /soegaard
+
+  http://archive.org/stream/byte-magazine-1981-09/
+  BYTE_Vol_06-09_1981-09_Artifical_Intelligence_djvu.txt
+}
+
 const
- size = 8190;
-
+  size = 8190;
+type
+  flagarray = array [0..size] of boolean;
+ 
 var
- flags : array [0..size] of boolean;
- I,PRIME,K,COUNT,ITER : INTEGER;
+ flags : flagarray;
+ i,prime,k,count,iter : integer;
 
-BEGIN
-{WRITE('10 iterations, <cr> to start');}
-{readln;}
-FOR ITER := 1 TO 10 DO BEGIN
-       COUNT := 0;
-       FILLCHAR(FLAGS,SIZEOF(FLAGS),CHR(1));
-       FOR I := 0 TO SIZE DO
-               IF FLAGS[I] THEN BEGIN
-                       PRIME := I+I+3;
-                       K := I + PRIME;
-                       WHILE K <= SIZE DO BEGIN
-                               FLAGS[K] := FALSE;
-                               K := K + PRIME
-                               END;
-                       COUNT := COUNT + 1;
-{                       (* WRITELN(PRIME) *)}
-                       END;
-       END;
-{WRITELN( chr ( 7 ),COUNT,' primes')}
-END.
-
-
+procedure fillchar(fs:flagarray; n:integer; c:char);
+var
+  i:integer;
+begin
+  for i:=0 to n do
+    fs[i]:=c;
+end;
+ 
+begin
+for iter := 1 to 10 do 
+  begin
+  count := 0;
+  fillchar(flags,high(flags),chr(1));
+  for i := 0 to size do
+    if flags[i] then 
+      begin
+      prime := i+i+3;
+      k := i + prime;
+      while k <= size do 
+        begin
+        flags[k] := false;
+        k := k + prime
+        end;
+        count := count + 1;
+      end;
+  end;
+  write(count, ' primes');
+end.

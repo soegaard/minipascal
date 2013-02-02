@@ -42,6 +42,12 @@
   [construct-array pascal:construct-array])
  ; Strings
  string->array
+ pascal:string=
+ pascal:string<>
+ pascal:string<
+ pascal:string<=
+ pascal:string>
+ pascal:string>=
  ;;; STANDARD LIBRARY
  chr
  succ prev ord)
@@ -196,10 +202,6 @@
     [(char? v)    (char->integer v)]
     [else (raise-argument-error 'succ "ordinal value" v)]))
 
-
-
-
-
 ;;;CHARACTERS 
 
 ; chr : byte -> char
@@ -209,8 +211,43 @@
     (raise-argument-error 'chr "byte" b))
   (integer->char b))
 
-  
 
+;;; STRINGS
 
+(define (pascal:string= s1 s2)
+  (define len1 (array-ref s1 0))
+  (define len2 (array-ref s2 0))
+  (define vec1 (array-vec s1))
+  (define vec2 (array-vec s2))
+  (and (equal? len1 len2)
+       (for/and ([i (in-range 1 (add1 (char->integer len1)))])
+         (char=? (vector-ref vec1 i) (vector-ref vec2 i)))))
 
+(define (pascal:string< s1 s2)
+  (define len1 (array-ref s1 0))
+  (define len2 (array-ref s2 0))
+  (define vec1 (array-vec s1))
+  (define vec2 (array-vec s2))
+  (and (equal? len1 len2)
+       (let ()
+         (define p 
+           (for/first 
+               ([i (in-range 1 (add1 (char->integer len1)))]
+                #:unless 
+                (char=? (vector-ref vec1 i) (vector-ref vec2 i)))
+             i))
+         (or (not p)
+             (char<? (vector-ref vec1 p) (vector-ref vec2 p))))))
 
+(define (pascal:string<= s1 s2)
+  (or (pascal:string= s1 s2)
+      (pascal:string< s1 s2)))
+
+(define (pascal:string> s1 s2)
+  (pascal:string< s2 s1))
+
+(define (pascal:string>= s1 s2)
+  (pascal:string<= s2 s1))
+
+(define (pascal:string<> s1 s2)
+  (not (pascal:string= s1 s2)))

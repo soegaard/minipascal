@@ -75,6 +75,10 @@
   (match v
     [(list f t) #t]
     [_          #f]))
+(define (type:string? v)
+  (match v
+    [(list 'array (list 0 to) 'char) #t]
+    [_ #f]))
 
 (define (compile-type stx)
   ; type : simple-type | array-type
@@ -96,17 +100,21 @@
   ; index-const : [sign] INTEGER-CONSTANT | CHARACTER-CONSTANT 
   ;             | [sign] constant-name 
   (syntax-parse stx
-    [(_ (~optional sign) const:integer)
-     (define s (compile-optional-sign #'sign))
+    [(_ (~optional sign #:defaults ([sign #'(sign "+")]))
+        const:integer)
+     (define s (compile-sign #'sign))
      (define val (syntax->datum #'const))
      (if (= s 1) val (- val))]
-    [(_ (~optional sign) (~and sub ((~datum constant-name) . more)))
-     (define s (compile-optional-sign #'sign))
+    [(_ (~optional sign #:defaults ([sign #'(sign "+")]))
+        (~and sub ((~datum constant-name) . _)))
+     (define s (compile-sign #'sign))
      (define val (compile-constant-name #'sub))
      (if (= s 1) val (- val))]
-    [c:char
+    [(_ c:char)
      (syntax->datum #'c)]
-    [_ (error)]))
+    [_ 
+     (displayln stx)
+     (error)]))
 
 (define (compile-constant-name stx)
   (syntax-parse stx
@@ -817,6 +825,14 @@
        [(_ ">")   #'char>?]
        [(_ "<=")  #'char<=?]
        [(_ ">=")  #'char>=?])]
+    [(list 'array (list 0 to) 'char) ; string 
+     (syntax-parse stx
+       [(_ "=")   #'pascal:string=]
+       [(_ "<>")  #'pascal:string<>]
+       [(_ "<")   #'pascal:string<]
+       [(_ ">")   #'pascal:string>]
+       [(_ "<=")  #'pascal:string<=]
+       [(_ ">=")  #'pascal:string>=])]
     [else 
      (def msg "comparison of values with non-ordinal type")
      (raise-syntax-error 'rel-op msg stx)]))
@@ -852,7 +868,7 @@
        (values (quasisyntax/loc stx 
                  (#,op1 (#,op0 #,et0 #,et1) #,es))
                type0))]
-    [(_ sign term0 . more)       
+    [(_ sign term0 . more)
      (compile-simple-expression
       (syntax/loc stx 
         (simple-expression (* sign term0) . more)))]
@@ -876,18 +892,8 @@
 (define (compile-sign stx)
   ; sign :	["+" | "-"]
   (syntax-parse stx
-    [(_ "-") #'-1]
-    [_       #'1]))
-
-(define (compile-optional-sign stx)
-  ; sign : ["+" | "-"]
-  (syntax-parse stx
-    [(_ (~optional (~and s (~or "+" "-"))))
-     (if (attribute s)
-         (syntax-parse #'s
-           ["-" -1]
-           [_   +1])
-         1)]))
+    [(_ "-") -1]
+    [_       +1]))
 
 (define (compile-term stx)
   ; term : factor (multiplying-operator factor)*; 
@@ -953,7 +959,7 @@
                   (* #,s #,id))
                 idt)]       
        [else (values id idt)])]
-    [(_  [sign] int-const)
+    [(_  (~optional sign) int-const:integer)
      (def c (syntax->datum #'int-const))
      (cond
        [(attribute sign)
@@ -962,7 +968,7 @@
                   (* #,s #,c))
                 (type-of c))]
        [else   (values #'int-const 'integer)])]
-    [(_ val)     
+    [(_ val)
      (def datum (syntax->datum #'val))
      (cond
        [(string? datum) 
@@ -970,6 +976,8 @@
                 (string->type datum))]
        [else
         (values #'val (type-of (syntax->datum #'val)))])]
+    
+    
     [_ (error 'compile-constant "internal error")]))
 
 (define (compile-constant-identifier stx)
