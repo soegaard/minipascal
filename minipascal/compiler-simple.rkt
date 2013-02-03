@@ -142,9 +142,9 @@
     [_ (error)]))
 
 (define (formals->ids stx)
-  ; formal-parameters : ["var"] IDENTIFIER ("," IDENTIFIER)* ":" type 
+  ; formal-parameters : IDENTIFIER ("," IDENTIFIER)* ":" type 
   (syntax-parse stx
-    [(_ (~optional "var") id0 (~seq "," id) ... ":" type)
+    [(_ id0 (~seq "," id) ... ":" type)
      (syntax->list #'(id0 id ...))]))
 
 (define (compile-procedure-declaration stx)

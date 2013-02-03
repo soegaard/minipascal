@@ -33,7 +33,7 @@ procedure-and-function-declaration-part :
 procedure-declaration :  "procedure" IDENTIFIER 
                          ["(" formal-parameters (";" formal-parameters)* ")"] ";"
                          block
-formal-parameters :      ["var"] IDENTIFIER ("," IDENTIFIER)* ":" type 
+formal-parameters :      IDENTIFIER ("," IDENTIFIER)* ":" type 
 
 function-declaration :   "function" IDENTIFIER 
                          ["(" formal-parameters (";" formal-parameters)* ")"] 
@@ -78,4 +78,4 @@ parameter-identifier :   IDENTIFIER
 ;; Lexical grammar
 constant :	             [sign] (INTEGER-CONSTANT | constant-identifier) 
                        | CHARACTER-CONSTANT | STRING-CONSTANT 
-constant-identifier :  IDENTIFIER
+constant-identifier :    IDENTIFIER

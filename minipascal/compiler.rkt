@@ -439,21 +439,21 @@
     [_ (error)]))
 
 (define (formals->ids stx)
-  ; formal-parameters : ["var"] IDENTIFIER ("," IDENTIFIER)* ":" type 
+  ; formal-parameters : IDENTIFIER ("," IDENTIFIER)* ":" type 
   (syntax-parse stx
-    [(_ (~optional "var") id0 (~seq "," id) ... ":" type)
+    [(_ id0 (~seq "," id) ... ":" type)
      (syntax->list #'(id0 id ...))]))
 
 (define (formals->description stx)
-  ; formal-parameters : ["var"] IDENTIFIER ("," IDENTIFIER)* ":" type 
+  ; formal-parameters : IDENTIFIER ("," IDENTIFIER)* ":" type 
   (syntax-parse stx
-    [(_ (~optional "var") id0 (~seq "," id) ... ":" type)
+    [(_ id0 (~seq "," id) ... ":" type)
      (compile-type #'type)]))
 
 (define (formals->descriptions stx)
-  ; formal-parameters : ["var"] IDENTIFIER ("," IDENTIFIER)* ":" type 
+  ; formal-parameters : IDENTIFIER ("," IDENTIFIER)* ":" type 
   (syntax-parse stx
-    [(_ (~optional "var") id0 (~seq "," id) ... ":" type)
+    [(_ id0 (~seq "," id) ... ":" type)
      (def desc (compile-type #'type))
      (map (λ(_) desc) (formals->ids stx))]))
 
