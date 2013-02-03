@@ -124,11 +124,20 @@
   ; variable-declaration : IDENTIFIER ("," IDENTIFIER)* ":" type
   (syntax-parse stx
     [(_ id0 (~seq "," id) ... ":" type)
-     (syntax/loc stx
-       (begin
-         (define id0 'undefined)
-         (define id 'undefined)
-         ...))]))
+     (define initial-value
+       (syntax-parse #'type
+         ['integer 0]
+         ['char    #\a]
+         ['boolean #t]
+         [else     'undefined]))
+     ; giving variables an initial value,
+     ; makes read work for the base cases
+     (with-syntax ([val initial-value])
+       (syntax/loc stx
+         (begin
+           (define id0 val)
+           (define id  val)
+           ...)))]))
 
 (define (compile-procedure-and-function-declaration-part stx)
   ; procedure-and-function-declaration-part : 
