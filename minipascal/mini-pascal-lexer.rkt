@@ -16,6 +16,41 @@
 
 (require ragg/support parser-tools/lex)
 
+; Reserved keywords in Pacal ignore case.
+; Thus the "PrOgRaM" and "program" are 
+; the same keyword. Since the lexer has
+; no builtin support for matching mixed case
+; strings, we define our own lexer 
+; transformation, mixed, that turns
+;   (mixed "foo") into
+;   (concatenation 
+;     (union #\f #\F) (union #\o #\o) (union #\o #\o))
+; Remember to use string-downcase on the 
+; resulting lexeme.
+
+(require (for-syntax syntax/parse))
+(define-lex-trans mixed
+  (λ (stx)
+    (syntax-parse stx
+      [(_ datum)
+       (define str (string-downcase (syntax->datum #'datum)))
+       (define STR (string-upcase str))
+       #`(concatenation
+          #,@(for/list ([c (in-string str)]
+                        [C (in-string STR)])
+               #`(union #,c #,C)))])))
+
+; The following lexer transformation turns
+; (union-mixed "foo" "bar") into
+; (union (mixed "foo") (mixed "bar"))
+
+(define-lex-trans union-mixed
+  (λ (stx)
+    (syntax-parse stx
+      [(_ str ...)
+       #`(union (mixed str) ...)])))
+
+
 ; Since we want to define two lexers, it is
 ; convenient to define lexer abbreviations
 ; that can be used in both lexers.
@@ -37,11 +72,12 @@
   [string-constant 
    (union (concatenation #\' (repetition 0 +inf.0 string-content) #\'))]
   [reserved
-   (union "div" "or" "and" "not" "if" "for" "to" "downto"
-          "then" "else" "of" "while" "do" "begin" "end" 
-          "read" "readln" "write" "writeln"
-          "var" "const" "array" "type" "bindable"
-          "procedure" "function" "program")]
+   (union-mixed
+    "div" "or" "and" "not" "if" "for" "to" "downto"
+    "then" "else" "of" "while" "do" "begin" "end" 
+    "read" "readln" "write" "writeln"
+    "var" "const" "array" "type" "bindable"
+    "procedure" "function" "program")]
   [slash-comment
    (concatenation "//" (repetition 0 +inf.0 (char-complement #\newline)))]
   [curly-comment 
@@ -68,7 +104,7 @@
      [(union "integer" "char" "boolean" "true" "false")
       (token 'IDENTIFIER (string->symbol lexeme))]
      [(union reserved delimiters) ; includes operators
-      lexeme]
+      (string-downcase lexeme)]
      [identifier
       (token 'IDENTIFIER (string->symbol (string-downcase lexeme)))]
      [integer

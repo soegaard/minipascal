@@ -10,7 +10,7 @@ var
   i:integer;
 begin
   {makerarray is only needed for "compiler-simple.rkt"}
-  A:=makearray(1,5,'a');  
+  // A:=makearray(1,5,'a');  
   {Fill array}
   A[1]:='a';
   A[2]:='b';

@@ -14,7 +14,7 @@ type
 var
  poly:coefs;
  
-function horner(var a:coefs; x:ring; n:natural):ring;
+function horner(a:coefs; x:ring; n:natural):ring;
   var y:ring; i:natural;
   begin
   y:=0;

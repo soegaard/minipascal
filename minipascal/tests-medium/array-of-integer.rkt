@@ -9,7 +9,7 @@ var
   i,sum: integer;
 begin
   {makerarray is only needed for "compiler-simple.rkt"}
-  A:=makearray(1,10,0);  
+  // A:=makearray(1,10,0);  
   {Fill array}
   i:=1;
   while i<11 do

@@ -43,42 +43,10 @@
 ;;; TYPES
 ;;;
 
-; The following table shows how the Pacal types are represented.
-; The representation is called a (type) description.
+; Type constructors and predicates are defined 
+; in "types.rkt".
 
-;;; Pascal                    Description
-
-;   boolean               ->  'boolean
-;   char                  ->  'char
-;   integer               ->  'integer
-;   false                 ->  'false
-;   true                  ->  'true
-;   from..to              ->  (list from-desc to-desc)
-;   array[idx] of T       ->  (list 'array (list from to) T-desc)
-;   procedure             ->  (list 'procedure (list))
-;   procedure(T1,...)     ->  (list 'procedure (list T1-desc ...))
-;   function (T1,...) : T ->  (list 'function  (list T1-desc ...) T-desc)
-
-(define type:boolean 'boolean)
-(define type:char    'char)
-(define type:integer 'integer)
-(define (type:index-range from to)
-  (list from to))
-(define (type:array idx-type elm-type) 
-  (list 'array idx-type elm-type))
-(define (type:procedure input-types) 
-  (list 'procedure input-types))
-(define (type:function input-types return-type) 
-  (list 'function input-types return-type))
-
-(define (type:index-range? v)
-  (match v
-    [(list f t) #t]
-    [_          #f]))
-(define (type:string? v)
-  (match v
-    [(list 'array (list 0 to) 'char) #t]
-    [_ #f]))
+(require "types.rkt")
 
 (define (compile-type stx)
   ; type : simple-type | array-type
@@ -93,8 +61,8 @@
   ; array-type : "array" "[" index-type "]" "of" simple-type
   (syntax-parse stx
     [(_ "array" "[" index "]" "of" simple)
-     (type:array (compile-index-type #'index)
-                 (compile-simple-type #'simple))]))
+     (array (compile-index-type #'index)
+            (compile-simple-type #'simple))]))
 
 (define (compile-index-constant stx)
   ; index-const : [sign] INTEGER-CONSTANT | CHARACTER-CONSTANT 
@@ -112,9 +80,7 @@
      (if (= s 1) val (- val))]
     [(_ c:char)
      (syntax->datum #'c)]
-    [_ 
-     (displayln stx)
-     (error)]))
+    [_ (error)]))
 
 (define (compile-constant-name stx)
   (syntax-parse stx
@@ -132,7 +98,7 @@
   ; index-range : index-constant ".." index-constant
   (syntax-parse stx
     [(_ from ".." to)
-     (type:index-range 
+     (index-range 
       (compile-index-constant #'from)
       (compile-index-constant #'to))]))
 
@@ -141,10 +107,8 @@
   (syntax-parse stx 
     [(_ sub)
      (syntax-parse #'sub 
-       [((~datum type-identifier) id)
-        (syntax->datum #'id)]
-       [((~datum index-range) . more)
-        (compile-index-range #'sub)])]))
+       [((~datum type-identifier) id) (syntax->datum #'id)]
+       [((~datum index-range) . _)    (compile-index-range #'sub)])]))
 
 (define (compile-simple-type stx)
   ; simple-type : type-identifier | index-range
@@ -165,36 +129,37 @@
         (def msg (~a "The type identifier " #'id " is unbound."))
         (raise-syntax-error 'compile-type-identifier msg stx)])]))
 
-(define (type:initial-value-constructor type)
-  (def desc (lookup type))
-  (match (if desc desc type)
-    [(struct type-info ('integer)) #'0]
-    [(struct type-info ('boolean)) #'#t]
-    [(struct type-info ('char))    #'#\a]
-    [(struct type-info ('true))    #'#t]
-    [(struct type-info ('false))   #'#f]
-    [(list 'array (list from to) of-desc)
-     (define ->index-stx
-       (cond
-         [(and (integer? from) (integer? to))
-          (with-syntax ([from from] [to to])
-            #'(λ (x) (- x from)))]
-         [(and (char? from) (char? to))
-          (with-syntax ([from from] [to to])
-            #'(λ (x) (- (char->integer x) (char->integer from))))]
-         [else (error 'non-ordinal-types)]))
-     (with-syntax 
-         ([of-construction-stx
-           (type:initial-value-constructor of-desc)]
-          [->index ->index-stx])         
-       #`(pascal:construct-array 
-          #,from #,to ->index (λ () of-construction-stx) '#,of-desc))]
-    [#f (error "type not defined" type)]))
+(define (initial-value-constructor type)
+  (def maybe-desc (lookup type))
+  (def desc (if maybe-desc maybe-desc type))
+  (match-type desc
+    [<true>    #'#t]
+    [<false>   #'#f]
+    [<integer> #'0]
+    [<boolean> #'#t]
+    [<char>    #'#\a]
+    [else
+     (cond
+       [(array? desc)
+        (def of   (array-of desc))
+        (def from (array-from desc))
+        (def to   (array-to desc))          
+        (def ->index
+          (match-type desc 
+            [(array (index-range <integer> <integer>) <star>)
+             #`(λ (x) (- x #,from))]
+            [(array (index-range <char> <char>) <star>)
+             #`(λ (x) (- (char->integer x) (char->integer #,from)))]
+            [else (error 'non-ordinal-types)]))
+        (def of-construction (initial-value-constructor of))
+        #`(pascal:construct-array 
+           #,from #,to #,->index 
+           (λ () #,of-construction) '#,of)]
+       [else (error "type not defined" type)])]))
 
 (define (string->type str)
   (def len (string-length str))
-  (type:array (type:index-range 0 (+ len 1))
-              type:char))
+  (array (index-range 0 (+ len 1)) <char>))
 
 ;;; END OF TYPES
 
@@ -214,11 +179,11 @@
         (map frame-alist (current-scope)))))
 
 ; There are 3 different info structures,
-; name for constants, types and variables.
+; namely for constants, types and variables.
 (define-struct info ())
 (define-struct (constant-info info) (value)       #:transparent)
 (define-struct (type-info info)     (description) #:transparent)
-(define-struct (variable-info info) (description) #:transparent)
+(define-struct (var-info info)      (description) #:transparent)
 
 (define (make-empty-frame) (make-frame '()))
 (define (make-empty-scope) (list (make-empty-frame)))
@@ -234,6 +199,12 @@
   (for/or ([frame (in-list (current-scope))])
     (lookup-in-frame sym frame)))
 
+(define (lookup-var sym)
+  (def info (lookup sym))
+  (if (var-info? info)
+      info
+      #f))
+
 (define (free? sym)
   (not (lookup sym)))
 
@@ -245,7 +216,7 @@
         [else #f]))
 
 (define (bound-to-variable? sym)
-  (cond [(lookup sym) => variable-info?]
+  (cond [(lookup sym) => var-info?]
         [else #f]))
 
 (define (bound-to-type? sym)
@@ -277,7 +248,8 @@
   (when (identifier? sym)
     (set! sym (syntax->datum sym)))
   (when (member sym (map car alist))
-    (raise-syntax-error 'duplicate-binding "duplicate binding" id))
+    (display (list id info alist))
+    (raise-syntax-error 'duplicate-bindingX "duplicate binding" id))
   (set-frame-alist! frame (cons (cons sym info) alist)))
 
 (define-syntax (with-extended-scope stx)
@@ -293,10 +265,27 @@
 ;;; Provide
 ;;; 
 
+; Top level functions and procedures are 
+; exported from the resulting modeule.
+; We must keep track of, whether we are
+; on top level or not.
+
+(define current-level (make-parameter 0))
+(define (on-top-level?)
+  (equal? (current-level) 0))
+(define-syntax (with-increased-level stx)
+  (syntax-parse stx
+    [(_ expr ...)
+     (syntax/loc stx
+       (parameterize ([current-level (add1 (current-level))])
+         expr ...))]))
+
 (define current-provides (make-parameter '()))
+
 (define (add-provide! id)
-  (current-provides
-   (cons id (current-provides))))
+  (when (on-top-level?)
+    (current-provides
+     (cons id (current-provides)))))
 
 ;;;
 ;;; Compilation
@@ -307,28 +296,31 @@
     [((~datum program) "program" program-name ";" block ".")
      (parameterize ([current-scope (make-empty-scope)])
        ; Add base types
-       (add-to-scope! 'integer (make-type-info 'integer))
-       (add-to-scope! 'boolean (make-type-info 'boolean))
-       (add-to-scope! 'char    (make-type-info 'char))
-       (add-to-scope! 'true    (make-type-info 'boolean))
-       (add-to-scope! 'false   (make-type-info 'boolean))
-       ; Any library functions can be added here.
-       (add-to-scope! 
-        'chr 
-        (make-variable-info (type:function (list 'integer) 'char)))
-       (add-to-scope! 
-        'succ (make-variable-info (type:function (list '*) '*)))
-       (add-to-scope! 
-        'prev (make-variable-info (type:function (list '*) '*)))
-       (add-to-scope! 
-        'ord (make-variable-info (type:function (list '*) 'integer)))
-       (add-to-scope! 'low 
-                      (make-variable-info 
-                       (type:function (list '*array*) 'integer)))
-       (add-to-scope! 'high 
-                      (make-variable-info
-                       (type:function (list '*array*) 'integer)))
-       (push-empty-frame!) ; new scope
+       (define base-env
+         (list (list 'integer <integer>)
+               (list 'boolean <boolean>)
+               (list 'char    <char>)
+               (list 'true    <boolean>)
+               (list 'false   <boolean>)))
+       (for ([b (in-list base-env)])
+         (match b 
+           [(list sym type) 
+            (add-to-scope! sym (make-type-info type))]))
+       ; Add standard lib
+       (define stdlib 
+         (list 
+          (list 'chr  (function (list <integer>) <char>))
+          (list 'succ (function (list <star>) <star>))
+          (list 'prev (function (list <star>) <star>))
+          (list 'ord  (function (list <star>) <integer>))
+          (list 'low  (function (list (array <star> <star>)) <integer>))
+          (list 'high (function (list (array <star> <star>)) <integer>))))
+       (for ([b (in-list stdlib)])
+         (match b 
+           [(list sym type) 
+            (add-to-scope! sym (var-info type))]))
+       ; new scope - thus user functions can shadow stdlib
+       (push-empty-frame!)
        (def compiled-block (compile-block #'block))
        (def provides
          (for/list ([id (in-list (current-provides))])
@@ -375,7 +367,8 @@
                (syntax->list #'(const-def ...)))]))
 
 (define (compile-constant-definition stx)
-  ; constant-definition : IDENTIFIER ("," IDENTIFIER)* "=" INTEGER-CONSTANT
+  ; constant-definition : 
+  ;    IDENTIFIER ("," IDENTIFIER)* "=" INTEGER-CONSTANT
   (syntax-parse stx
     [(_ id0 (~seq "," id) ... "=" x)
      (def val (syntax->datum #'x))
@@ -403,7 +396,6 @@
   (syntax-parse stx
     [(_) '()]
     [(_ "var" (~seq var-decl ";") ...+)
-     ; (push-empty-frame!) ; new scope
      (append-map compile-variable-declaration
                  (syntax->list #'(var-decl ...)))]))
 
@@ -414,12 +406,12 @@
      (def desc (compile-type #'type))
      (for/list ([id (in-list (syntax->list #'(id0 id ...)))])
        (cond
-         [(type:index-range? desc)
+         [(index-range? desc)
           (quasisyntax/loc stx 
             (define #,id '#,desc))]
          [else
-          (def c (type:initial-value-constructor desc))
-          (add-to-scope! id (make-variable-info desc))
+          (def c (initial-value-constructor desc))
+          (add-to-scope! id (var-info desc))
           (quasisyntax/loc stx 
             (define #,id #,c))]))]))
 
@@ -430,9 +422,9 @@
     [(_ (~seq decl ";") ...)
      (define (compile-decl d)
        (syntax-parse d 
-         [((~datum procedure-declaration) . more)
+         [((~datum procedure-declaration) . _)
           (compile-procedure-declaration d)]
-         [((~datum function-declaration) . more)
+         [((~datum function-declaration) . _)
           (compile-function-declaration d)]))
      (map compile-decl
           (syntax->list #'(decl ...)))]
@@ -465,9 +457,11 @@
   (syntax-parse stx
     [(_ "procedure" id ";" block)
      (def sym (syntax->datum #'id))
-     (def info (make-variable-info (type:procedure '())))
+     (def info (var-info (procedure '())))
      (add-to-scope! sym info)
-     (def compiled-block (compile-block #'block))
+     (def compiled-block 
+       (with-increased-level
+        (compile-block #'block)))
      (with-syntax ([thunk (generate-temporary 
                            (~a (syntax->datum #'id) "-thunk"))])
        (add-provide! #'id)
@@ -491,17 +485,18 @@
        (def formals-desc 
          (append* (map formals->descriptions
                        (syntax->list #'(formals0 formals ...)))))
-       (def proc-desc (type:procedure formals-desc))
+       (def proc-desc (procedure formals-desc))
        (def alist 
          (map cons 
               (syntax->datum #'(formal0 ... formal ... ...))
-              (map make-variable-info formals-desc)))  
+              (map var-info formals-desc)))  
        (def sym (syntax->datum #'id))                      
-       (def info (make-variable-info proc-desc))
+       (def info (var-info proc-desc))
        (add-to-scope! sym info)
        (def compiled-block 
-         (with-extended-scope (make-frame alist)
-           (compile-block #'block)))
+         (with-increased-level
+          (with-extended-scope (make-frame alist)
+            (compile-block #'block))))
        (add-provide! #'id)
        (quasisyntax/loc stx
          (define (id formal0 ... formal ... ...)
@@ -520,13 +515,14 @@
                            (~a (syntax->datum #'id) "-thunk"))])
        ; register type
        (def sym (syntax->datum #'id))
-       (def desc 
-         (type:function '() (compile-type-identifier #'type-id)))
-       (def info (make-variable-info desc))
+       (def output-type (compile-type-identifier #'type-id))
+       (def desc (function '() output-type))
+       (def info (var-info desc))
        (add-to-scope! sym info)
        (def compiled-block 
-         (with-extended-scope (make-empty-frame)
-           (compile-block #'block)))
+         (with-increased-level
+          (with-extended-scope (make-empty-frame)
+            (compile-block #'block))))
        (add-provide! #'id)
        (quasisyntax/loc stx
          (begin
@@ -556,11 +552,10 @@
        (def input-types
          (map formals->descriptions
               (syntax->list #'(formals0 formals ...))))
+       (def output-type (compile-type-identifier #'type-id))
        (def sym (syntax->datum #'id))
-       (def desc (type:function 
-                  input-types
-                  (compile-type-identifier #'type-id)))
-       (def info (make-variable-info desc))
+       (def desc (function input-types output-type))
+       (def info (var-info desc))
        (def formals-desc 
          (append*
           (map formals->descriptions
@@ -568,11 +563,12 @@
        (def alist 
          (map cons 
               (syntax->datum #'(formal0 ... formal ... ...))
-              (map make-variable-info formals-desc)))
+              (map var-info formals-desc)))
        (add-to-scope! sym info)
        (def compiled-block 
-         (with-extended-scope (make-frame alist)           
-           (compile-block #'block)))
+         (with-increased-level
+          (with-extended-scope (make-frame alist)           
+            (compile-block #'block))))
        (add-provide! #'id)       
        (quasisyntax/loc stx
          (begin
@@ -619,7 +615,7 @@
   ; statement : simple-statement | structured-statement
   (syntax-parse stx
     ; a structured statement begins with begin, if, or, while.
-    [(_ (~and sub ((~datum structured-statement) . more)))
+    [(_ (~and sub ((~datum structured-statement) . _)))
      (compile-structured-statement #'sub)]
     [(_ sub)
      (compile-simple-statement #'sub)]
@@ -630,17 +626,17 @@
   ;       | read-statement | write-statement | writeln-statement
   ;       | application
   (syntax-parse stx
-    [(_ (~and sub ((~datum assignment-statement) . more)))
+    [(_ (~and sub ((~datum assignment-statement) . _)))
      (compile-assignment-statement #'sub)]
-    [(_ (~and sub ((~datum procedure-statement) . more)))
+    [(_ (~and sub ((~datum procedure-statement) . _)))
      (compile-procedure-statement #'sub)]
-    [(_ (~and sub ((~datum read-statement) . more)))
+    [(_ (~and sub ((~datum read-statement) . _)))
      (compile-read-statement #'sub)]
-    [(_ (~and sub ((~datum write-statement) . more)))
+    [(_ (~and sub ((~datum write-statement) . _)))
      (compile-write-statement #'sub)]
-    [(_ (~and sub ((~datum writeln-statement) . more)))
+    [(_ (~and sub ((~datum writeln-statement) . _)))
      (compile-writeln-statement #'sub)]
-    [(_ (~and sub ((~datum application) . more)))
+    [(_ (~and sub ((~datum application) . _)))
      (def (s st) (compile-application #'sub))
      s]
     [_ (error 'compile-simple-statement "internal error")]))
@@ -675,13 +671,11 @@
   ;       disallows read(a[3]). Remember a[3] is a legal variable/lvalue.   
   (syntax-parse stx 
     [(_ "read" "(" id0 (~seq "," id) ... ")")
-     (def var-info (lookup #'id0))
      (def reader
-       (match var-info
-         [(struct variable-info ('integer)) #'pascal:read-integer]
-         [(struct variable-info ('char))    #'pascal:read-char]
-         [else     
-          (error "read supports only integer and char")]))
+       (match-type (var-info (lookup-var #'id0))
+         [<integer> #'pascal:read-integer]
+         [<char>    #'pascal:read-char]
+         [else (error "read supports only integer and char")]))
      (quasisyntax/loc stx 
        (begin
          (set! id0 (#,reader))
@@ -751,7 +745,7 @@
     [(_ id "[" expr "]")
      (def (e et) (compile-expression #'expr))
      (match (lookup #'id)
-       [(variable-info (list 'array index-type of-type))
+       [(var-info (array index-type of-type))
         ; TODO: check that et matches index-type
         (values (quasisyntax/loc stx 
                   (pascal:array-ref id #,e))
@@ -767,11 +761,11 @@
      (def exprs (syntax->list #'(expr0 expr ...)))
      (def (es types) (map2 compile-expression exprs))     
      (def desc 
-       (match (lookup #'id)
-         [(variable-info (list 'function inputs return-desc))
+       (match (lookup-var #'id)
+         [(var-info (function inputs return-desc))
           return-desc]
-         [(variable-info (list 'procedure inputs))
-          'pascal:'void]
+         [(var-info (procedure inputs))
+          <void>]
          [else 
           (raise-syntax-error
                 'application "name unbound" #'id)]))
@@ -792,7 +786,7 @@
      (def (se2 t2) (compile-simple-expression #'simple-expr2))
      (def op (compile-relational-operator #'rel-op t1 t2))
      (values (quasisyntax/loc stx (#,op #,se1 #,se2))
-             'boolean)]
+             <boolean>)]
     [_ (error)]))
 
 (define-syntax (raise-unless-equal-types-error stx)
@@ -808,8 +802,8 @@
   ; relational-operator : "=" | "<>" | "<" | "<=" | ">=" | ">"
   (def msg "Comparison of values with different types.")
   (raise-unless-equal-types-error type1 type2 msg stx)
-  (match type1
-    ['integer
+  (match-type type1
+    [<integer>
      (syntax-parse stx
        [(_ "=")   #'=]
        [(_ "<>")  #'(λ (a b) (not (= a b)))]
@@ -817,7 +811,7 @@
        [(_ ">")   #'>]
        [(_ "<=")  #'<=]
        [(_ ">=")  #'>=])]
-    ['char
+    [<char>
      (syntax-parse stx
        [(_ "=")   #'char=?]
        [(_ "<>")  #'(λ (a b) (not (char=? a b)))]
@@ -825,7 +819,7 @@
        [(_ ">")   #'char>?]
        [(_ "<=")  #'char<=?]
        [(_ ">=")  #'char>=?])]
-    [(list 'array (list 0 to) 'char) ; string 
+    [<string>
      (syntax-parse stx
        [(_ "=")   #'pascal:string=]
        [(_ "<>")  #'pascal:string<>]
@@ -878,12 +872,12 @@
   ; adding-operator : "+" | "-" | "or"
   (def msg "Adding operators must have terms with same types.")
   (raise-unless-equal-types-error type1 type2 msg stx)    
-  (match type1
-    ['integer (syntax-parse stx
-                [(_ "+")  #'+]
-                [(_ "-")  #'-])]
-    ['boolean (syntax-parse stx
-                [(_ "or") #'or])]
+  (match-type type1
+    [<integer> (syntax-parse stx
+                 [(_ "+")  #'+]
+                 [(_ "-")  #'-])]
+    [<boolean> (syntax-parse stx
+                 [(_ "or") #'or])]
     [else
      (def msg 
        (~a "The operator is not defined for this type" type1))
@@ -912,13 +906,13 @@
 (define (compile-multiplying-operator stx type1 type2)  
   ; multiplying-operator : "*" | "div" | "and"
   (def msg "Multiplying operators must have terms with same types.")
-  (raise-unless-equal-types-error type1 type2 msg stx)
-  (match type1
-    ['integer (syntax-parse stx
-                [(_ "*")    #'*]
-                [(_ "div")  #'quotient])]
-    ['boolean (syntax-parse stx
-                [(_ "and")  #'and])]
+  ; (raise-unless-equal-types-error type1 type2 msg stx)
+  (match-type type1
+    [<integer> (syntax-parse stx
+                 [(_ "*")    #'*]
+                 [(_ "div")  #'quotient])]
+    [<boolean> (syntax-parse stx
+                 [(_ "and")  #'and])]
     [else 
      (raise-syntax-error 
       'mul-op "operator not defined for this type" stx)]))
@@ -928,29 +922,29 @@
   (syntax-parse stx
     [(_ sub)
      (syntax-parse #'sub
-       [((~datum application) . more) (compile-application #'sub)]
-       [((~datum variable) . more)    (compile-variable #'sub)]
-       [((~datum constant) . more)    (compile-constant #'sub)])]
+       [((~datum application) . _) (compile-application #'sub)]
+       [((~datum variable) . _)    (compile-variable #'sub)]
+       [((~datum constant) . _)    (compile-constant #'sub)])]
     [(_ "(" expr ")") 
      (compile-expression #'expr)]
     [(_ "not" factor) 
      (def (ef type) (compile-factor #'factor))
-     (unless (equal? type 'boolean)
+     (unless (type=? type <boolean>)
        (raise-syntax-error 
         '<not-factor> "expected (not <boolean-expr>)" stx))
      (values (quasisyntax/loc stx (not #,ef))
-             'boolean)]))
+             <boolean>)]))
 
 (define (compile-constant stx)
   ; constant : [sign] (INTEGER-CONSTANT | constant-identifier) 
   ;          | CHARACTER-CONSTANT | STRING-CONSTANT 
   (define (type-of val)
-    (cond [(integer? val) 'integer]
-          [(char? val)    'char]
-          [(boolean? val) 'boolean]))
+    (cond [(integer? val) <integer>]
+          [(char? val)    <char>]
+          [(boolean? val) <boolean>]))
   (syntax-parse stx
     [(_  (~optional sign) 
-         (~and sub ((~datum constant-identifier) . more)))
+         (~and sub ((~datum constant-identifier) . _)))
      (def (id idt) (compile-constant-identifier #'sub))
      (cond
        [(attribute sign)
@@ -967,7 +961,7 @@
         (values (quasisyntax/loc stx
                   (* #,s #,c))
                 (type-of c))]
-       [else   (values #'int-const 'integer)])]
+       [else   (values #'int-const <integer>)])]
     [(_ val)
      (def datum (syntax->datum #'val))
      (cond
@@ -976,21 +970,19 @@
                 (string->type datum))]
        [else
         (values #'val (type-of (syntax->datum #'val)))])]
-    
-    
     [_ (error 'compile-constant "internal error")]))
 
 (define (compile-constant-identifier stx)
   ; constant-identifier : IDENTIFIER
   (define (type-of val)
-    (cond [(integer? val) type:integer]  ; make-type-info XXXX
-          [(char? val)    type:char]
-          [(boolean? val) type:boolean]))
+    (cond [(integer? val) <integer>]  ; make-type-info XXXX
+          [(char? val)    <char>]
+          [(boolean? val) <boolean>]))
   (syntax-parse stx
     [(_ (~datum true))
-     (values #'#t type:boolean)]
+     (values #'#t <boolean>)]
     [(_ (~datum false))
-     (values #'#f type:boolean)]
+     (values #'#f <boolean>)]
     [(_ id)
      ; XXX TODO catch calls to functions with no arguments
      (match (lookup #'id)
@@ -1001,9 +993,9 @@
        ; The lexer might return (constant-identifier _) 
        ; for non-constants (the lexer doesn't know which
        ; identifiers are constants and which are variables.
-       [(variable-info desc)
+       [(var-info desc)
         (match desc
-          [(list 'function input output)
+          [(function input output)
            (values #'id output)]
           [else (values #'id desc)])] ; error?
        [else
@@ -1017,13 +1009,13 @@
   (syntax-parse stx 
     [(_ sub)
      (syntax-parse #'sub
-       [((~datum compound-statement) . more)
+       [((~datum compound-statement) . _)
         (compile-compound-statement #'sub)]
-       [(~and sub ((~datum if-statement) . more))
+       [(~and sub ((~datum if-statement) . _))
         (compile-if-statement #'sub)]
-       [(~and sub ((~datum while-statement) . more))
+       [(~and sub ((~datum while-statement) . _))
         (compile-while-statement #'sub)]
-       [(~and sub ((~datum for-statement) . more))
+       [(~and sub ((~datum for-statement) . _))
         (compile-for-statement #'sub)]
        [_ (error)])]
     [_ (error)]))
@@ -1034,14 +1026,14 @@
   (syntax-parse stx 
     [(_ "if" expr "then" stat)
      (def (e et) (compile-expression #'expr))
-     (unless (equal? et type:boolean)
+     (unless (equal? et <boolean>)
        (def msg "boolean expression expected")
        (raise-syntax-error 'if msg stx #'expr))
      (def s (compile-statement #'stat))
      (quasisyntax/loc stx (when #,e #,s))]
     [(_ "if" expr "then" stat1 "else" stat2)
      (def (e et) (compile-expression #'expr))
-     (unless (equal? et type:boolean)
+     (unless (equal? et <boolean>)
        (def msg "boolean expression expected")
        (raise-syntax-error 'if msg stx #'expr))
      (def s1 (compile-statement #'stat1))
@@ -1053,7 +1045,7 @@
   (syntax-parse stx
     [(_ "while" expr "do" stat)
      (def (e et) (compile-expression #'expr))
-     (unless (equal? et type:boolean)
+     (unless (equal? et <boolean>)
        (def msg "boolean expression expected")
        (raise-syntax-error 'while msg stx #'expr))
      (def s (compile-statement #'stat))
