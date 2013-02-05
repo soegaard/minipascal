@@ -1,7 +1,7 @@
 #lang minipascal
-{This test demonstrates nested functions.
- The expected result is 7.
- Original examples from Wikipedia.}
+{ This test demonstrates nested functions.
+  The expected result is 7.
+  Original examples from Wikipedia.}
 program nested;
 type  
   int=integer;  

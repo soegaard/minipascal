@@ -143,18 +143,24 @@
        [(array? desc)
         (def of   (array-of desc))
         (def from (array-from desc))
-        (def to   (array-to desc))          
-        (def ->index
-          (match-type desc 
-            [(array (index-range <integer> <integer>) <star>)
-             #`(λ (x) (- x #,from))]
-            [(array (index-range <char> <char>) <star>)
-             #`(λ (x) (- (char->integer x) (char->integer #,from)))]
-            [else (error 'non-ordinal-types)]))
-        (def of-construction (initial-value-constructor of))
-        #`(pascal:construct-array 
-           #,from #,to #,->index 
-           (λ () #,of-construction) '#,of)]
+        (def to   (array-to desc))
+        (match-type desc
+          [(array (index-range 1 <integer>) <char>)
+           ; this will generate a mutable string
+           #`(make-string #,(+ to 1) #\space)]
+          [else
+           (def ->index
+             (match-type desc             
+               [(array (index-range <integer> <integer>) <star>)
+                #`(λ (x) (- x #,from))]
+               [(array (index-range <char> <char>) <star>)
+                (let ([from-index (char->integer from)])
+                  #`(λ (x) (- (char->integer x) from-index)))]
+               [else (error 'non-ordinal-types)]))
+           (def of-construction (initial-value-constructor of))
+           #`(pascal:construct-array
+              #,from #,to #,->index
+              (λ () #,of-construction) '#,of)])]
        [else (error "type not defined" type)])]))
 
 (define (string->type str)
@@ -180,7 +186,7 @@
 
 ; There are 3 different info structures,
 ; namely for constants, types and variables.
-(define-struct info ())
+(define-struct info ()                            #:transparent)
 (define-struct (constant-info info) (value)       #:transparent)
 (define-struct (type-info info)     (description) #:transparent)
 (define-struct (var-info info)      (description) #:transparent)
@@ -661,8 +667,14 @@
                            "unbound variable" stx #'id))
      (def (e1 _)  (compile-expression #'expr1))
      (def (e2 __) (compile-expression #'expr2))
-     (quasisyntax/loc stx 
-       (pascal:array-set! id #,e1 #,e2))]
+     (def desc (var-info-description (lookup-var sym)))
+     (match-type desc
+       [<string> 
+        (quasisyntax/loc stx
+          (string-set! id #,e1 #,e2))]
+       [else
+        (quasisyntax/loc stx 
+          (pascal:array-set! id #,e1 #,e2))])]
     [_ (error)]))
 
 (define (compile-read-statement stx)
@@ -744,15 +756,24 @@
      (values #'id (lookup #'id))]
     [(_ id "[" expr "]")
      (def (e et) (compile-expression #'expr))
-     (match (lookup #'id)
-       [(var-info (array index-type of-type))
-        ; TODO: check that et matches index-type
+     (def info (lookup #'id))
+     (unless (var-info? info)
+       (raise-syntax-error 
+        'compile-variable "expected an array, in" #'id))
+     ; TODO: check that et matches index-type
+     (def ae (var-info-description info))
+     (def of (array-of ae))
+     (match-type ae
+       [<string>
+        (values (quasisyntax/loc stx 
+                  (string-ref id #,e))
+                of)]
+       [(array (index-range <star> <star>) <star>)
         (values (quasisyntax/loc stx 
                   (pascal:array-ref id #,e))
-                of-type)]
-       [else (raise-syntax-error 'compile-variable
-                                 "variable has wrong type"
-                                 #'id)])]))
+                of)]
+       [else (def msg "variable has wrong type")
+             (raise-syntax-error 'compile-variable msg #'id)])]))
 
 (define (compile-application stx)
   ; application : IDENTIFIER "(" expression ("," expression)* ")"
