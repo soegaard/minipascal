@@ -74,15 +74,15 @@ Exercises
 Installation
 ------------
 
-Install this package with:
+Install this package from the command line with:
 
-    raco pkg install minipascal
+    raco pkg install --deps search-ask minipascal
 
-or, by evaluating:
+or, by evaluating the following in DrRacket:
 
     #lang racket
     (require planet2)
-    (install "minipascal")
+    (install "minipascal" #:deps 'search-ask)
 
 Use the Racket package manager to install:
 
