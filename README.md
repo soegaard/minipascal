@@ -37,7 +37,7 @@ The following features are supported:
   - nested functions and procedures
   - base types: integer, boolean, char,
   - arrays 
-  - strings (in the for of arrays of char)
+  - strings
   - integer and char can be used as index ranges
 
 Compilers

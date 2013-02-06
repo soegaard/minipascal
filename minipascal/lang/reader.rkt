@@ -7,7 +7,8 @@
 (require "../mini-pascal-lexer.rkt"
          "../mini-pascal-grammar.rkt")
 
-(require "../compiler.rkt")
+(require "../compiler.rkt"
+         "../compiler-fpc.rkt")
 
 ; In order to specify paths relative to the
 ; path of "reader.rkt" (rather than the file 
@@ -29,23 +30,30 @@
 
 (define mode 'full)
 
-(define (my-read-syntax src ip)
+(define (my-read-syntax src ip)  
   (define after-minipascal (read-line ip))
   ; determine which compiler to use
   ;   #lang minipascal simple  => semantics-simple.rkt
-  ;   #lang minipascal         => semantics.rkt
+  ;   #lang minipascal         => compiler.rkt
+  ;   #lang fpc                => compile-fpc.rkt
   (when (regexp-match "simple" after-minipascal)
     (set! mode 'simple))
-  (define parse-tree (parse src (lex ip)))
+  (when (regexp-match "fpc" after-minipascal)
+    (set! mode 'fpc))    
   (case mode
+    [(simple)
+     (define parse-tree (parse src (lex ip)))
+     (quasisyntax/loc #'here
+       (module minipascal #,sem-simple-path
+         #,parse-tree))]
     [(full)
+     (define parse-tree (parse src (lex ip)))
      (define prg (compile-program parse-tree))
      ; (displayln prg)
      prg]
-    [(simple) 
-     (quasisyntax/loc #'here
-       (module minipascal #,sem-simple-path
-         #,parse-tree))]))
+    [(fpc)
+     (define prg (compile/fpc src ip))
+     prg]))
 
 ; read returns the same as read-syntax,
 ; except as a datum.
