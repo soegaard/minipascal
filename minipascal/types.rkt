@@ -16,7 +16,8 @@
  string-type?
  
  subtype? type=?
- match-type)
+ match-type
+ type->string)
 
 (require (for-syntax syntax/parse))
 
@@ -134,7 +135,11 @@
     [(function inputs out)
      (~a "function(" (types->string inputs) "):"
          (type->string out))]
-    [else (error 'internal-error "forgot a type?")]))
+    [else 
+     (cond [(or (integer? t) (char? t) (boolean? t)) (~a t)]
+           [(syntax? t) (type->string (syntax->datum t))]
+           [else (displayln t)
+              (error 'internal-error "forgot a type?")])]))
 
 (define (string-type? t)
   (subtype? t <string>))
@@ -199,3 +204,4 @@
 ;(check-exn exn? (λ() (raise-unless-subtype <boolean> <char> 'foo #'here)))
 ;
 ;(check-equal? (match-type <char> [<boolean> 'b] [<char> 'c] [else #f]) 'c)
+;(check-true (subtype? 32 <integer>))

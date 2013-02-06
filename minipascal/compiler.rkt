@@ -780,19 +780,27 @@
   (syntax-parse stx
     [(_ id "(" expr0 (~seq "," expr) ... ")")
      (def exprs (syntax->list #'(expr0 expr ...)))
-     (def (es types) (map2 compile-expression exprs))     
-     (def desc 
-       (match (lookup-var #'id)
-         [(var-info (function inputs return-desc))
-          return-desc]
-         [(var-info (procedure inputs))
-          <void>]
-         [else 
-          (raise-syntax-error
-                'application "name unbound" #'id)]))
+     (def (es types) (map2 compile-expression exprs))
+     (define info (lookup-var #'id))
+     (unless info
+       (raise-syntax-error 'application "name unbound" #'id))
+     (def (inputs output)
+       (match (var-info-description info) 
+         [(function inputs output) (values inputs output)]
+         [(procedure inputs)       (values inputs <void>)]
+         [else (def msg "expected function or procedure")
+               (raise-syntax-error 'application msg #'id)]))
+     (unless (= (length es) (length inputs))
+       (def msg (~a "expected " (length inputs) "arguments"))
+       (raise-syntax-error 'application msg) #'stx)
+     (for ([t types] [i inputs] [e es])
+       (unless (subtype? t i)
+         (def msg (~a "expected " (type->string i) 
+                      ", got " (type->string t)))
+         (raise-syntax-error (syntax->datum #'id) msg e)))
      (with-syntax ([(e0 e ...) es])
        (values (syntax/loc stx (id e0 e ...))
-               desc))]
+               output))]
     [_ (error)]))
 
 (define (compile-expression stx)
@@ -939,7 +947,8 @@
       'mul-op "operator not defined for this type" stx)]))
 
 (define (compile-factor stx)
-  ; factor : application | variable | constant | "(" expression ")" | "not" factor 
+  ; factor : application | variable | 
+  ;          constant | "(" expression ")" | "not" factor 
   (syntax-parse stx
     [(_ sub)
      (syntax-parse #'sub
@@ -988,9 +997,9 @@
      (cond
        [(string? datum) 
         (values (syntax/loc stx (string->array val))
-                (string->type datum))]
-       [else
-        (values #'val (type-of (syntax->datum #'val)))])]
+                (array (index-range 1 (+ (string-length datum) 1)) 
+                       <char>))]
+       [else (values #'val (type-of (syntax->datum #'val)))])]
     [_ (error 'compile-constant "internal error")]))
 
 (define (compile-constant-identifier stx)

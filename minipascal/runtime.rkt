@@ -168,11 +168,11 @@
 
 (define (string->array str)
   (define len (string-length str))
-  (define vec (make-vector (+ len 1) (integer->char len)))
+  (define s (make-string (+ len 1) #\space))
   (for ([c (in-string str)]
         [i (in-naturals)])
-    (vector-set! vec (+ i 1) c))
-  (array 0 len vec values 'char))
+    (string-set! s (+ i 1) c))
+  s)
 
 ;;; Array Functions in std lib
 
