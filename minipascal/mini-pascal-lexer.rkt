@@ -12,7 +12,7 @@
 
 ; The other one, color-lex, returns tokens
 ; to be used by DrRacket to syntax color 
-; Pascal Programs.
+; Pascal programs.
 
 (require ragg/support parser-tools/lex)
 
@@ -41,15 +41,14 @@
                #`(union #,c #,C)))])))
 
 ; The following lexer transformation turns
-; (union-mixed "foo" "bar") into
-; (union (mixed "foo") (mixed "bar"))
+;   (union-mixed "foo" "bar") into
+;   (union (mixed "foo") (mixed "bar"))
 
 (define-lex-trans union-mixed
   (λ (stx)
     (syntax-parse stx
       [(_ str ...)
        #`(union (mixed str) ...)])))
-
 
 ; Since we want to define two lexers, it is
 ; convenient to define lexer abbreviations
@@ -79,7 +78,7 @@
     "var" "const" "array" "type" "bindable"
     "procedure" "function" "program")]
   [slash-comment
-   (concatenation "//" (repetition 0 +inf.0 (char-complement #\newline)))]
+   (concatenation "//" (repetition 0 +inf.0 (char-complement #\newline)))]  
   [curly-comment 
    (concatenation #\{  (repetition 0 +inf.0 (char-complement #\})) #\})]
   [comment 

@@ -36,10 +36,17 @@
   ;   #lang minipascal simple  => semantics-simple.rkt
   ;   #lang minipascal         => compiler.rkt
   ;   #lang fpc                => compile-fpc.rkt
-  (when (regexp-match "simple" after-minipascal)
-    (set! mode 'simple))
-  (when (regexp-match "fpc" after-minipascal)
-    (set! mode 'fpc))    
+  (define test-input #f)
+  (define after (open-input-string after-minipascal))
+  (let loop ()
+    (define option (read after))
+    (unless (eof-object? option)
+      (match option 
+        ['simple           (set! mode 'simple)]
+        ['fpc              (set! mode 'fpc)]
+        [(list 'input str) (set! test-input str)]
+        [_ (displayln (~a "unrecognized option: " option))])
+      (loop)))  
   (case mode
     [(simple)
      (define parse-tree (parse src (lex ip)))
@@ -52,7 +59,7 @@
      ; (displayln prg)
      prg]
     [(fpc)
-     (define prg (compile/fpc src ip))
+     (define prg (compile/fpc src ip test-input))
      prg]))
 
 ; read returns the same as read-syntax,
