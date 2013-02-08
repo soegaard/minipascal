@@ -393,13 +393,17 @@
     [(_ "=")   #'equal? ]
     [(_ "<>")  #'(λ (a b) (not (equal? a b)))]
     [(_ "<")   #'(λ (a b) (cond [(integer? a) (< a b)]
-                                [(char? a)    (char<? a b)]))]
+                                [(char? a)    (char<? a b)]
+                                [(string? a)  (string<? a b)]))]
     [(_ ">")   #'(λ (a b) (cond [(integer? a) (> a b)]
-                                [(char? a)    (char>? a b)]))]
+                                [(char? a)    (char>? a b)]
+                                [(string? a)  (string>? a b)]))]
     [(_ "<=")  #'(λ (a b) (cond [(integer? a) (<= a b)]
-                                [(char? a)    (char<=? a b)]))]
+                                [(char? a)    (char<=? a b)]
+                                [(string? a)  (string<=? a b)]))]
     [(_ ">=")  #'(λ (a b) (cond [(integer? a) (>= a b)]
-                                [(char? a)    (char>=? a b)]))]))
+                                [(char? a)    (char>=? a b)]
+                                [(string? a)  (string>=? a b)]))]))
 
 (define (compile-simple-expression stx)
   ; simple-expression : sign term (adding-operator term)*

@@ -1,4 +1,4 @@
-#lang minipascal fpc (input "abcdef")
+#lang minipascal simple (input "abcdef")
 program fpctest;
 var s:string;
 begin

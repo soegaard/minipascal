@@ -38,6 +38,7 @@
   ;   #lang fpc                => compile-fpc.rkt
   (define test-input #f)
   (define after (open-input-string after-minipascal))
+  ; look for options
   (let loop ()
     (define option (read after))
     (unless (eof-object? option)
@@ -46,7 +47,8 @@
         ['fpc              (set! mode 'fpc)]
         [(list 'input str) (set! test-input str)]
         [_ (displayln (~a "unrecognized option: " option))])
-      (loop)))  
+      (loop)))
+  ; parse and compile
   (case mode
     [(simple)
      (define parse-tree (parse src (lex ip)))

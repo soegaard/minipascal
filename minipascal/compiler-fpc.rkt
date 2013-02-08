@@ -37,17 +37,23 @@
 (define (fpc-compile pas-file)
   (define out-file 
     (make-temporary-file "~a.out" #f (current-directory)))
-  (with-output-to-string
-   (λ()
-     (system* "/usr/local/bin/fpc" 
+  (define (compile)
+    (system* "/usr/local/bin/fpc" 
               "-k-macosx_version_min 10.6"
-              ;"-va"
               (~a "-o" out-file)
-              pas-file)))
-  (define permissions
-    (bitwise-ior user-execute-bit user-read-bit user-write-bit))
-  (file-or-directory-permissions out-file permissions)
-  out-file)
+              pas-file))
+  (define exit-code 0)
+  (define output (with-output-to-string 
+                  (λ () (set! exit-code (compile)))))
+  (cond
+    [exit-code
+     (define permissions
+       (bitwise-ior user-execute-bit user-read-bit user-write-bit))
+     (file-or-directory-permissions out-file permissions)
+     out-file]
+    [else
+     (displayln output)
+     #f]))
 
 (define (run out-file input)
   (define in
@@ -61,9 +67,10 @@
 (define (compile/fpc src ip input)
   (define pas-file (generate-pas-file ip))
   (define out-file (fpc-compile pas-file))
-  (run out-file input)
+  (when out-file
+    (run out-file input)
+    (delete-file out-file))
   (delete-file pas-file)
-  (delete-file out-file)
   (quasisyntax/loc #'here
     (module fpc racket/base
       (void))))

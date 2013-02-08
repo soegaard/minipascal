@@ -113,7 +113,9 @@
      (let ([i (->index idx)])
        (unless (<= (->index from) i (->index to))
          (raise-range-error 'array-ref "array" "" idx vec from to))
-       (vector-ref vec i))]))
+       (vector-ref vec i))]
+    [_ (displayln (list 'array-ref arr idx))
+       (error)]))
 
 ; array-set! : array index value -> value
 ;   set the value whose index is idx to v
@@ -168,10 +170,10 @@
 
 (define (string->array str)
   (define len (string-length str))
-  (define s (make-string (+ len 1) #\space))
+  (define s (make-string len #\space))
   (for ([c (in-string str)]
         [i (in-naturals)])
-    (string-set! s (+ i 1) c))
+    (string-set! s i c))
   s)
 
 ;;; Array Functions in std lib
@@ -215,29 +217,21 @@
 ;;; STRINGS
 
 (define (pascal:string= s1 s2)
-  (define len1 (array-ref s1 0))
-  (define len2 (array-ref s2 0))
-  (define vec1 (array-vec s1))
-  (define vec2 (array-vec s2))
-  (and (equal? len1 len2)
-       (for/and ([i (in-range 1 (add1 (char->integer len1)))])
-         (char=? (vector-ref vec1 i) (vector-ref vec2 i)))))
+  (string=? s1 s2))
 
 (define (pascal:string< s1 s2)
-  (define len1 (array-ref s1 0))
-  (define len2 (array-ref s2 0))
-  (define vec1 (array-vec s1))
-  (define vec2 (array-vec s2))
-  (and (equal? len1 len2)
+  (define len1 (string-length s1))
+  (define len2 (string-length s2))
+  (and (= len1 len2)
        (let ()
          (define p 
            (for/first 
-               ([i (in-range 1 (add1 (char->integer len1)))]
+               ([i (in-range 0 len1)]
                 #:unless 
-                (char=? (vector-ref vec1 i) (vector-ref vec2 i)))
+                (char=? (string-ref s1 i) (string-ref s2 i)))
              i))
          (or (not p)
-             (char<? (vector-ref vec1 p) (vector-ref vec2 p))))))
+             (char<? (string-ref s1 p) (string-ref s2 p))))))
 
 (define (pascal:string<= s1 s2)
   (or (pascal:string= s1 s2)
