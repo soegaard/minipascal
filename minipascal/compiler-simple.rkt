@@ -299,8 +299,11 @@
          (pascal:read id0)
          (pascal:read id) ...))]
     [(_ "readln" "(" id0 (~seq "," id) ... ")")
-     ; TODO: Figure out what the Pascal readln actually does
-     (error 'TODO)]))
+     (def ids (syntax->list #'(id0 id ...)))
+     (quasisyntax/loc stx 
+       (begin
+         (set! id0 (read-line))
+         (set! id  (read-line)) ...))]))
 
 (define (compile-write-statement stx)
   ; write-statement :

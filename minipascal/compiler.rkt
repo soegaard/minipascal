@@ -148,6 +148,8 @@
           [(array (index-range 1 <integer>) <char>)
            ; this will generate a mutable string
            #`(make-string #,(+ to 1) #\space)]
+          [(array (index-range 1 <star>) <char>)
+           #`(make-string #,(+ 255 1) #\space)]
           [else
            (def ->index
              (match-type desc             
@@ -156,7 +158,8 @@
                [(array (index-range <char> <char>) <star>)
                 (let ([from-index (char->integer from)])
                   #`(λ (x) (- (char->integer x) from-index)))]
-               [else (error 'non-ordinal-types)]))
+               [else 
+                (error 'non-ordinal-types)]))
            (def of-construction (initial-value-constructor of))
            #`(pascal:construct-array
               #,from #,to #,->index
@@ -307,7 +310,8 @@
                (list 'boolean <boolean>)
                (list 'char    <char>)
                (list 'true    <boolean>)
-               (list 'false   <boolean>)))
+               (list 'false   <boolean>)
+               (list 'string  <string>)))
        (for ([b (in-list base-env)])
          (match b 
            [(list sym type) 
@@ -693,8 +697,15 @@
          (set! id0 (#,reader))
          (set! id  (#,reader)) ...))]
     [(_ "readln" "(" id0 (~seq "," id) ... ")")
-     ; TODO: Figure out what the Pascal readln actually does
-     (error 'TODO)]))
+     (def ids (syntax->list #'(id0 id ...)))
+     (for ([id (in-list ids)])
+       (match-type (var-info-description (lookup-var id))
+         [<string> 'ok]
+         [else (error "readln support <string> only.")]))
+     (quasisyntax/loc stx 
+       (begin
+         (set! id0 (read-line))
+         (set! id  (read-line)) ...))]))
 
 (define (compile-write-statement stx)
   ; write-statement :
