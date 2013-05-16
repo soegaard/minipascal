@@ -11,18 +11,18 @@ After installation (see later) the following program will run
 as is in DrRacket.
 
     #lang minipascal
-    program fib;
+    program fact;
     type 
       int=integer;
-    function fib(n:int):int;
+    function fact(n:int):int;
       begin
         if n=0 then
-          fib:=1
+          fact:=1
         else
-          fib:=n*fib(n-1)
+          fact:=n*fact(n-1)
       end;
     begin
-      writeln(fib(10));
+      writeln(fact(10));
     end.
 
 See `mini-pascal-grammar.rkt` for a complete grammar.
