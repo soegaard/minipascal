@@ -76,17 +76,24 @@ Installation
 
 Install this package from the command line with:
 
-    raco pkg install --deps search-ask minipascal
+```sh
+raco pkg install --deps search-ask minipascal
+```
 
 or, by evaluating the following in DrRacket:
 
-    #lang racket
-    (require planet2)
-    (install "minipascal" #:deps 'search-ask)
+```racket
+#lang racket
+
+(require planet2)
+(install "minipascal" #:deps 'search-ask)
+```
 
 Use the Racket package manager to install:
 
- raco pkg install minipascal
+```
+raco pkg install minipascal
+```
 
 References
 ----------
