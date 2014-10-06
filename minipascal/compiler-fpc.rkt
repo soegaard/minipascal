@@ -39,9 +39,9 @@
     (make-temporary-file "~a.out" #f (current-directory)))
   (define (compile)
     (system* "/usr/local/bin/fpc" 
-              "-k-macosx_version_min 10.6"
-              (~a "-o" out-file)
-              pas-file))
+             "-k-macosx_version_min 10.6"
+             (~a "-o" out-file)
+             pas-file))
   (define exit-code 0)
   (define output (with-output-to-string 
                   (λ () (set! exit-code (compile)))))
@@ -51,7 +51,7 @@
        (bitwise-ior user-execute-bit user-read-bit user-write-bit))
      (file-or-directory-permissions out-file permissions)
      out-file]
-    [else
+    [else 
      (displayln output)
      #f]))
 

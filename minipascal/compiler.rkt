@@ -775,7 +775,7 @@
      (def ae (var-info-description info))
      (def of (array-of ae))
      (match-type ae
-       [<string> (values (quasisyntax/loc stx 
+       [<string> (values (quasisyntax/loc stx
                            (string-ref id (sub1 #,e)))
                          of)]
        [(array (index-range <star> <star>) <star>)
