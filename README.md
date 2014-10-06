@@ -85,7 +85,7 @@ or, by evaluating the following in DrRacket:
 ```racket
 #lang racket
 
-(require planet2)
+(require pkg)
 (install "minipascal" #:deps 'search-ask)
 ```
 
