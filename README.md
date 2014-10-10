@@ -56,7 +56,8 @@ The compiler more traditional, it expands the whole
 Pascal program in one go.
 
 To switch from the full compiler to the simple one,
-add 'simple' to the #lang line. That is, the lines:
+add `simple` to the `#lang` line. That is, the lines:
+
     #lang minipascal
     #lang minipascal simple
 use the full and simple compiler respectively.
