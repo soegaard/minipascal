@@ -560,8 +560,8 @@
           [result           (generate-temporary 
                              (~a (syntax->datum #'id) "-result"))])
        (def input-types
-         (map formals->descriptions
-              (syntax->list #'(formals0 formals ...))))
+         (append-map formals->descriptions
+                     (syntax->list #'(formals0 formals ...))))
        (def output-type (compile-type-identifier #'type-id))
        (def sym (syntax->datum #'id))
        (def desc (function input-types output-type))
@@ -805,8 +805,8 @@
        (raise-syntax-error 'application msg) #'stx)
      (for ([t types] [i inputs] [e es])
        (unless (subtype? t i)
-         (def msg (~a "expected " (type->string i) 
-                      ", got " (type->string t)))
+         (def msg (~a "expected " (type->string i)
+                      ", got "    (type->string t)))
          (raise-syntax-error (syntax->datum #'id) msg e)))
      (with-syntax ([(e0 e ...) es])
        (values (syntax/loc stx (id e0 e ...))
@@ -833,7 +833,7 @@
     [(_ type1 type2 msg blame-stx)
      (syntax/loc stx
        (unless (equal? type1 type2)
-         (def msg1 (~a msg1 "\nThe offending types are  "
+         (def msg1 (~a msg "\nThe offending types are  "
                        type1 "  and  " type2))
          (raise-syntax-error 'type-error msg blame-stx)))]))
 

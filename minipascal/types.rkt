@@ -44,7 +44,7 @@
 (struct True    base ())
 (struct Void    base ())
 (struct Char    ordinal ())
-(struct Integer ordinal ())
+(struct Integer ordinal ()) 
 
 ; The capitalization is to avoid
 ; clashes with Racket's boolean?, char? and integer?.
@@ -135,11 +135,14 @@
     [(function inputs out)
      (~a "function(" (types->string inputs) "):"
          (type->string out))]
+    [(list type ...) (~a "( " (apply ~a (map type->string type)) " )")]
     [else 
      (cond [(or (integer? t) (char? t) (boolean? t)) (~a t)]
            [(syntax? t) (type->string (syntax->datum t))]
-           [else (displayln t)
-              (error 'internal-error "forgot a type?")])]))
+           [else 
+            (displayln "Offending type:")
+            (displayln t)
+            (error 'type->string "Internal Error: forgot a type?")])]))
 
 (define (string-type? t)
   (subtype? t <string>))
