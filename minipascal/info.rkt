@@ -1,6 +1,7 @@
 #lang info
 
-(define compile-omit-paths '("tests-basic"
+(define compile-omit-paths '("experiments"
+                             "tests-basic"
                             "tests-medium"
                             "tests-advanced"
                             "tests-real"
