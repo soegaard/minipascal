@@ -70,7 +70,7 @@
   (syntax->datum (my-read-syntax #f in)))
 
 ; get-info is in general used by external
-; tools to retriece information about a
+; tools to retrieve information about a
 ; program. Here we use get-info to tell
 ; DrRacket which lexer it should use to
 ; syntax color Pascal programs.
