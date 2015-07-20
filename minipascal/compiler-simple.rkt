@@ -22,8 +22,7 @@
 (require syntax/parse)
 
 ; A few other helpers are used:
-(require unstable/list ; for map2
-         racket/match
+(require racket/match
          racket/syntax)
 
 ;;; Syntax used in the compiler

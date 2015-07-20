@@ -19,8 +19,7 @@
 (require syntax/parse)
 
 ; A few other helpers are used:
-(require unstable/list ; for map2
-         racket/match
+(require racket/match
          racket/syntax)
 
 ;;; Syntax used in the compiler
@@ -790,7 +789,9 @@
   (syntax-parse stx
     [(_ id "(" expr0 (~seq "," expr) ... ")")
      (def exprs (syntax->list #'(expr0 expr ...)))
-     (def (es types) (map2 compile-expression exprs))
+     (def (es types) (for/lists (es types)
+                       ([e (in-list exprs)])
+                       (compile-expression e)))
      (define info (lookup-var #'id))
      (unless info
        (raise-syntax-error 'application "name unbound" #'id))
