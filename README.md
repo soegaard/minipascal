@@ -4,7 +4,7 @@ MiniPascal
 MiniPascal as a Racket language
 -------------------------------
 
-This is the `minipascal' package. It provides MiniPascal
+This is the `minipascal` package. It provides MiniPascal
 as a new #lang language.
 
 After installation (see later) the following program will run
